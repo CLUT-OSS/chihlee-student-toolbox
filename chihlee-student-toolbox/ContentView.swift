@@ -1,61 +1,89 @@
-//
-//  ContentView.swift
-//  chihlee-student-toolbox
-//
-//  Created by CH ouo on 2026/2/25.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(\.scenePhase) private var scenePhase
+
+    private enum MainTab: Int, Hashable {
+        case homework = 0
+        case schedule
+        case attendance
+        case toolkit
+        case profile
+    }
+
+    @State private var auth = AuthViewModel()
+    @State private var selectedTab: MainTab = .homework
+    @State private var profileTabTapCount = 0
+    @State private var showTokenDebug = false
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        Group {
+            if auth.isAuthenticated {
+                mainTabView
+            } else {
+                LoginView()
+                    .environment(auth)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+        }
+        .sheet(isPresented: $showTokenDebug) {
+            AuthTokenDebugView(token: auth.wrapperToken, metrics: auth.debugMetrics)
+        }
+        .task {
+            await auth.validateSession()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await auth.validateSession() }
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    private var mainTabView: some View {
+        TabView(selection: tabSelection) {
+            Tab("作業", systemImage: "book.closed", value: MainTab.homework) {
+                HomeworkTabView()
+            }
+            Tab("課表", systemImage: "calendar", value: MainTab.schedule) {
+                ScheduleTabView()
+            }
+            Tab("出席", systemImage: "checkmark.circle", value: MainTab.attendance) {
+                AttendanceTabView()
+            }
+            Tab("工具", systemImage: "wrench.and.screwdriver", value: MainTab.toolkit) {
+                ToolkitTabView()
+            }
+            Tab("個人", systemImage: "person.circle", value: MainTab.profile) {
+                ProfileTabView()
             }
         }
+        .environment(auth)
+    }
+
+    private var tabSelection: Binding<MainTab> {
+        Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if newTab == .profile {
+                    if selectedTab == .profile {
+                        profileTabTapCount += 1
+                    } else {
+                        profileTabTapCount = 1
+                    }
+                    if profileTabTapCount >= 5 {
+                        profileTabTapCount = 0
+                        showTokenDebug = true
+                    }
+                } else {
+                    profileTabTapCount = 0
+                }
+                selectedTab = newTab
+            }
+        )
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(PreviewSampleData.container)
 }
+#endif
