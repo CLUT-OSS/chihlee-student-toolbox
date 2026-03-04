@@ -13,6 +13,7 @@ final class ThemeStore {
         didSet {
             guard appearance != oldValue else { return }
             defaults.set(appearance.rawValue, forKey: Keys.appearanceMode)
+            AppearanceManager.apply(appearance, animated: true)
         }
     }
 
@@ -22,6 +23,7 @@ final class ThemeStore {
         self.defaults = defaults
         self.appearance = Self.initialAppearance(from: defaults)
         defaults.set(appearance.rawValue, forKey: Keys.appearanceMode)
+        AppearanceManager.apply(appearance)
     }
 
     private static func initialAppearance(from defaults: UserDefaults) -> AppAppearance {

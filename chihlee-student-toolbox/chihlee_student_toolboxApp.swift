@@ -12,11 +12,15 @@ struct chihlee_student_toolboxApp: App {
         AttendanceRecord.self,
     ])
 
+    @State private var themeStore = ThemeStore()
+
     var sharedModelContainer: ModelContainer = Self.makeSharedModelContainer()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(themeStore)
+                .preferredColorScheme(themeStore.appearance.colorScheme)
                 .task {
                     await NotificationManager.shared.requestPermission()
                 }
