@@ -54,6 +54,304 @@ struct IlifeAttendanceRecord: Decodable, Identifiable {
     }
 }
 
+// MARK: - iLife Leave Models
+
+struct IlifeLeaveTypeOption: Decodable, Identifiable {
+    let value: String
+    let label: String
+    let caption: String?
+
+    var id: String { value }
+}
+
+struct IlifeLeaveSelected: Decodable {
+    let sdate: String
+    let edate: String
+    let type: String?
+
+    init(sdate: String, edate: String, type: String?) {
+        self.sdate = sdate
+        self.edate = edate
+        self.type = type
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sdate = try container.decodeIfPresent(String.self, forKey: .sdate) ?? ""
+        edate = try container.decodeIfPresent(String.self, forKey: .edate) ?? sdate
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case sdate
+        case edate
+        case type
+    }
+}
+
+struct IlifeLeaveCoursePeriod: Decodable, Identifiable {
+    let period: String
+    let courseName: String
+    let roomNo: String?
+    let subjectID: String?
+
+    var id: String { "\(period)-\(subjectID ?? courseName)" }
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case courseName = "course_name"
+        case roomNo = "room_no"
+        case subjectID = "subject_id"
+    }
+}
+
+struct IlifeLeaveCourseDay: Decodable, Identifiable {
+    let displayDate: String
+    let periods: [IlifeLeaveCoursePeriod]
+
+    var id: String { displayDate + "-\(periods.count)" }
+
+    enum CodingKeys: String, CodingKey {
+        case displayDate = "display_date"
+        case periods
+    }
+}
+
+struct IlifeLeaveCoursesData: Decodable {
+    let status: Bool
+    let message: String?
+    let days: [IlifeLeaveCourseDay]
+
+    init(status: Bool, message: String?, days: [IlifeLeaveCourseDay]) {
+        self.status = status
+        self.message = message
+        self.days = days
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decodeIfPresent(Bool.self, forKey: .status) ?? false
+        message = try container.decodeIfPresent(String.self, forKey: .message)
+        days = try container.decodeIfPresent([IlifeLeaveCourseDay].self, forKey: .days) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case message
+        case days
+    }
+}
+
+struct IlifeLeaveData: Decodable {
+    let leaveTypes: [IlifeLeaveTypeOption]
+    let selected: IlifeLeaveSelected
+    let courses: IlifeLeaveCoursesData?
+
+    init(leaveTypes: [IlifeLeaveTypeOption], selected: IlifeLeaveSelected, courses: IlifeLeaveCoursesData?) {
+        self.leaveTypes = leaveTypes
+        self.selected = selected
+        self.courses = courses
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        leaveTypes = try container.decodeIfPresent([IlifeLeaveTypeOption].self, forKey: .leaveTypes) ?? []
+        selected = try container.decodeIfPresent(IlifeLeaveSelected.self, forKey: .selected)
+            ?? IlifeLeaveSelected(sdate: "", edate: "", type: nil)
+        courses = try container.decodeIfPresent(IlifeLeaveCoursesData.self, forKey: .courses)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case leaveTypes = "leave_types"
+        case selected
+        case courses
+    }
+}
+
+struct IlifeLeaveSubmitResult: Decodable {
+    let success: Bool
+    let message: String
+    let details: [String]
+    let recordID: String?
+
+    init(success: Bool, message: String, details: [String], recordID: String?) {
+        self.success = success
+        self.message = message
+        self.details = details
+        self.recordID = recordID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decodeIfPresent(Bool.self, forKey: .success) ?? false
+        message = try container.decodeIfPresent(String.self, forKey: .message) ?? ""
+        details = try container.decodeIfPresent([String].self, forKey: .details) ?? []
+        recordID = try container.decodeLossyString(forKey: .recordID)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case details
+        case recordID = "record_id"
+    }
+}
+
+struct IlifeCancelLeaveResult: Decodable {
+    let success: Bool
+    let message: String
+    let details: [String]
+
+    init(success: Bool, message: String, details: [String]) {
+        self.success = success
+        self.message = message
+        self.details = details
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decodeIfPresent(Bool.self, forKey: .success) ?? false
+        message = try container.decodeIfPresent(String.self, forKey: .message) ?? ""
+        details = try container.decodeIfPresent([String].self, forKey: .details) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case details
+    }
+}
+
+struct IlifeLeaveRecord: Decodable, Identifiable {
+    let recordID: String
+    let status: String?
+    let submittedAt: String?
+    let leaveType: String?
+    let type: String?
+    let sdate: String?
+    let edate: String?
+    let courseCount: Int?
+
+    var id: String { recordID }
+
+    enum CodingKeys: String, CodingKey {
+        case recordID = "record_id"
+        case id
+        case status
+        case submittedAt = "submitted_at"
+        case leaveType = "leave_type"
+        case type
+        case sdate
+        case edate
+        case courseCount = "course_count"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let decoded = try container.decodeLossyString(forKey: .recordID) {
+            recordID = decoded
+        } else if let decoded = try container.decodeLossyString(forKey: .id) {
+            recordID = decoded
+        } else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.recordID,
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Missing record_id")
+            )
+        }
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        submittedAt = try container.decodeIfPresent(String.self, forKey: .submittedAt)
+        leaveType = try container.decodeIfPresent(String.self, forKey: .leaveType)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+        sdate = try container.decodeIfPresent(String.self, forKey: .sdate)
+        edate = try container.decodeIfPresent(String.self, forKey: .edate)
+
+        if let intValue = try container.decodeIfPresent(Int.self, forKey: .courseCount) {
+            courseCount = intValue
+        } else if let stringValue = try container.decodeIfPresent(String.self, forKey: .courseCount),
+                  let intValue = Int(stringValue) {
+            courseCount = intValue
+        } else {
+            courseCount = nil
+        }
+    }
+}
+
+struct IlifeLeaveRecordDetailEntry: Decodable, Identifiable {
+    let date: String?
+    let period: String?
+    let subject: String?
+
+    var id: String {
+        "\(date ?? "")-\(period ?? "")-\(subject ?? "")"
+    }
+}
+
+struct IlifeLeaveRecordDetail: Decodable {
+    let recordID: String?
+    let status: String?
+    let leaveType: String?
+    let type: String?
+    let reason: String?
+    let opinion: String?
+    let sdate: String?
+    let edate: String?
+    let entries: [IlifeLeaveRecordDetailEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case recordID = "record_id"
+        case id
+        case status
+        case leaveType = "leave_type"
+        case type
+        case reason
+        case opinion
+        case sdate
+        case edate
+        case entries
+    }
+
+    init(recordID: String?, status: String?, leaveType: String?, type: String?, reason: String?, opinion: String?, sdate: String?, edate: String?, entries: [IlifeLeaveRecordDetailEntry]) {
+        self.recordID = recordID
+        self.status = status
+        self.leaveType = leaveType
+        self.type = type
+        self.reason = reason
+        self.opinion = opinion
+        self.sdate = sdate
+        self.edate = edate
+        self.entries = entries
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        recordID = try container.decodeLossyString(forKey: .recordID)
+            ?? container.decodeLossyString(forKey: .id)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        leaveType = try container.decodeIfPresent(String.self, forKey: .leaveType)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+        reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        opinion = try container.decodeIfPresent(String.self, forKey: .opinion)
+        sdate = try container.decodeIfPresent(String.self, forKey: .sdate)
+        edate = try container.decodeIfPresent(String.self, forKey: .edate)
+        entries = try container.decodeIfPresent([IlifeLeaveRecordDetailEntry].self, forKey: .entries) ?? []
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeLossyString(forKey key: Key) throws -> String? {
+        if let value = try decodeIfPresent(String.self, forKey: key) {
+            return value
+        }
+        if let intValue = try decodeIfPresent(Int.self, forKey: key) {
+            return String(intValue)
+        }
+        if let doubleValue = try decodeIfPresent(Double.self, forKey: key) {
+            return String(doubleValue)
+        }
+        return nil
+    }
+}
+
 // MARK: - DLC Calendar Models
 
 struct DlcCalendarEvent: Decodable, Identifiable {
@@ -431,6 +729,22 @@ struct APIService {
     static let baseURL = AuthService.baseURL
     static let schoolCalendarCSVURL = URL(string: "https://chihlee-cal-worker.thisisch.workers.dev/api/v1/csv")!
 
+    private struct ApiErrorPayload: Decodable {
+        let message: String?
+    }
+
+    struct IlifeLeaveSubmitCourse: Encodable {
+        let courseID: String
+        let date: String
+        let period: String
+
+        enum CodingKeys: String, CodingKey {
+            case courseID = "course_id"
+            case date
+            case period
+        }
+    }
+
     static func fetchSchedule(token: String, semester: String? = nil) async throws -> [APIScheduleData] {
         var components = URLComponents(string: "\(baseURL)/api/v1/eportfolio/schedule")!
         if let semester, !semester.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -604,6 +918,199 @@ struct APIService {
 
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
         return envelope.data?.records ?? []
+    }
+
+    static func fetchIlifeLeave(
+        token: String,
+        sdate: String,
+        edate: String? = nil,
+        type: String? = nil
+    ) async throws -> IlifeLeaveData {
+        var components = URLComponents(string: "\(baseURL)/api/v1/ilife/leave")!
+        var queryItems: [URLQueryItem] = [URLQueryItem(name: "sdate", value: sdate)]
+        if let edate, !edate.isEmpty {
+            queryItems.append(URLQueryItem(name: "edate", value: edate))
+        }
+        if let type, !type.isEmpty {
+            queryItems.append(URLQueryItem(name: "type", value: type))
+        }
+        components.queryItems = queryItems
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: IlifeLeaveData?
+            let error: ApiErrorPayload?
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let payload = envelope.data {
+            return payload
+        }
+        if let message = envelope.error?.message, !message.isEmpty {
+            throw AuthError.serverError(message)
+        }
+        return IlifeLeaveData(
+            leaveTypes: [],
+            selected: IlifeLeaveSelected(sdate: sdate, edate: edate ?? sdate, type: type),
+            courses: nil
+        )
+    }
+
+    static func submitIlifeLeave(
+        token: String,
+        type: String,
+        sdate: String,
+        edate: String,
+        reason: String,
+        leaves: [IlifeLeaveSubmitCourse]
+    ) async throws -> IlifeLeaveSubmitResult {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/leave")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        struct Body: Encodable {
+            let type: String
+            let sdate: String
+            let edate: String
+            let reason: String
+            let leaves: [IlifeLeaveSubmitCourse]
+        }
+
+        request.httpBody = try JSONEncoder().encode(Body(
+            type: type,
+            sdate: sdate,
+            edate: edate,
+            reason: reason,
+            leaves: leaves
+        ))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: IlifeLeaveSubmitResult?
+            let error: ApiErrorPayload?
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let payload = envelope.data {
+            return payload
+        }
+        if let message = envelope.error?.message, !message.isEmpty {
+            return IlifeLeaveSubmitResult(success: false, message: message, details: [], recordID: nil)
+        }
+        return IlifeLeaveSubmitResult(success: false, message: "送出失敗", details: [], recordID: nil)
+    }
+
+    static func fetchIlifeLeaveRecords(token: String) async throws -> [IlifeLeaveRecord] {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/leave/record")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: Payload?
+            let error: ApiErrorPayload?
+            struct Payload: Decodable {
+                let records: LossyDecodableArray<IlifeLeaveRecord>?
+            }
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let message = envelope.error?.message, !message.isEmpty {
+            throw AuthError.serverError(message)
+        }
+        return envelope.data?.records?.elements ?? []
+    }
+
+    static func fetchIlifeLeaveRecordDetail(token: String, recordID: String) async throws -> IlifeLeaveRecordDetail {
+        var components = URLComponents(string: "\(baseURL)/api/v1/ilife/leave/show_record")!
+        components.queryItems = [URLQueryItem(name: "record_id", value: recordID)]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: IlifeLeaveRecordDetail?
+            let error: ApiErrorPayload?
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let payload = envelope.data {
+            return payload
+        }
+        if let message = envelope.error?.message, !message.isEmpty {
+            throw AuthError.serverError(message)
+        }
+        return IlifeLeaveRecordDetail(
+            recordID: recordID,
+            status: nil,
+            leaveType: nil,
+            type: nil,
+            reason: nil,
+            opinion: nil,
+            sdate: nil,
+            edate: nil,
+            entries: []
+        )
+    }
+
+    static func cancelIlifeLeave(token: String, recordID: String) async throws -> IlifeCancelLeaveResult {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/cancel_leave")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        struct Body: Encodable {
+            let id: String
+        }
+
+        request.httpBody = try JSONEncoder().encode(Body(id: recordID))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: IlifeCancelLeaveResult?
+            let error: ApiErrorPayload?
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let payload = envelope.data {
+            return payload
+        }
+        if let message = envelope.error?.message, !message.isEmpty {
+            return IlifeCancelLeaveResult(success: false, message: message, details: [])
+        }
+        return IlifeCancelLeaveResult(success: false, message: "取消失敗", details: [])
     }
 
     private static func parseCSVRows(_ text: String) -> [[String]] {

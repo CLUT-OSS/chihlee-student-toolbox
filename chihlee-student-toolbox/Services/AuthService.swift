@@ -33,13 +33,23 @@ private struct ApiErrorBody: Decodable {
 
 struct LoginResponseData: Decodable {
     let wrapperToken: String
-    let message: String
     let dlcConnected: Bool
+    let eportfolioConnected: Bool
+    let ilifeConnected: Bool
 
     enum CodingKeys: String, CodingKey {
         case wrapperToken = "wrapper_token"
-        case message
         case dlcConnected = "dlc_connected"
+        case eportfolioConnected = "eportfolio_connected"
+        case ilifeConnected = "ilife_connected"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        wrapperToken = try container.decode(String.self, forKey: .wrapperToken)
+        dlcConnected = try container.decodeIfPresent(Bool.self, forKey: .dlcConnected) ?? false
+        eportfolioConnected = try container.decodeIfPresent(Bool.self, forKey: .eportfolioConnected) ?? false
+        ilifeConnected = try container.decodeIfPresent(Bool.self, forKey: .ilifeConnected) ?? false
     }
 }
 
@@ -50,6 +60,7 @@ struct SessionStatusData: Decodable {
     let expiresAt: String?
     let dlcConnected: Bool
     let eportfolioConnected: Bool
+    let ilifeConnected: Bool
     let studentIDHash: String?
 
     enum CodingKeys: String, CodingKey {
@@ -59,7 +70,20 @@ struct SessionStatusData: Decodable {
         case expiresAt = "expires_at"
         case dlcConnected = "dlc_connected"
         case eportfolioConnected = "eportfolio_connected"
+        case ilifeConnected = "ilife_connected"
         case studentIDHash = "student_id_hash"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        wrapperToken = try container.decodeIfPresent(String.self, forKey: .wrapperToken)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        lastSeenAt = try container.decodeIfPresent(String.self, forKey: .lastSeenAt)
+        expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt)
+        dlcConnected = try container.decodeIfPresent(Bool.self, forKey: .dlcConnected) ?? false
+        eportfolioConnected = try container.decodeIfPresent(Bool.self, forKey: .eportfolioConnected) ?? false
+        ilifeConnected = try container.decodeIfPresent(Bool.self, forKey: .ilifeConnected) ?? false
+        studentIDHash = try container.decodeIfPresent(String.self, forKey: .studentIDHash)
     }
 }
 
