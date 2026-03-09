@@ -2,52 +2,51 @@ import SwiftUI
 import SwiftData
 
 struct ToolkitTabView: View {
-    private let tools: [(name: String, icon: String, color: Color)] = [
-        ("GPA 計算機", "function", .blue),
-        ("常用連結", "link", .green),
-        ("學校行事曆", "calendar", .orange),
-        ("圖書館掃描", "barcode.viewfinder", .indigo),
-        ("歷年成績", "doc.text.magnifyingglass", .teal),
+    private struct ToolItem: Identifiable {
+        let id: String
+        let name: String
+        let icon: String
+        let color: Color
+    }
+
+    private let tools: [ToolItem] = [
+        ToolItem(id: "gpa", name: "GPA 計算機", icon: "function", color: .blue),
+        ToolItem(id: "links", name: "常用連結", icon: "link", color: .green),
+        ToolItem(id: "calendar", name: "學校行事曆", icon: "calendar", color: .orange),
+        ToolItem(id: "library", name: "圖書館掃描", icon: "barcode.viewfinder", color: .indigo),
+        ToolItem(id: "scores", name: "歷年成績", icon: "doc.text.magnifyingglass", color: .teal),
+        ToolItem(id: "leave", name: "請假申請", icon: "cross.case", color: .cyan),
     ]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            toolboxGrid
+        }
+    }
+
+    private var toolboxGrid: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("工具箱")
+                    .font(.title2.weight(.bold))
+                    .padding(.horizontal)
+                    .padding(.top, 6)
+
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                    NavigationLink {
-                        GPACalculatorView()
-                    } label: {
-                        toolCard(name: tools[0].name, icon: tools[0].icon, color: tools[0].color)
-                    }
-
-                    NavigationLink {
-                        QuickLinksView()
-                    } label: {
-                        toolCard(name: tools[1].name, icon: tools[1].icon, color: tools[1].color)
-                    }
-
-                    NavigationLink {
-                        SchoolCalendarView()
-                    } label: {
-                        toolCard(name: tools[2].name, icon: tools[2].icon, color: tools[2].color)
-                    }
-
-                    NavigationLink {
-                        LibraryScanView()
-                    } label: {
-                        toolCard(name: tools[3].name, icon: tools[3].icon, color: tools[3].color)
-                    }
-
-                    NavigationLink {
-                        TranscriptView()
-                    } label: {
-                        toolCard(name: tools[4].name, icon: tools[4].icon, color: tools[4].color)
+                    ForEach(tools) { tool in
+                        NavigationLink {
+                            destinationView(for: tool.id)
+                        } label: {
+                            toolCard(name: tool.name, icon: tool.icon, color: tool.color)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.bottom, 12)
             }
-            .navigationTitle("工具箱")
         }
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func toolCard(name: String, icon: String, color: Color) -> some View {
@@ -63,6 +62,26 @@ struct ToolkitTabView: View {
         .frame(height: 120)
         .background(color.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private func destinationView(for toolID: String) -> some View {
+        switch toolID {
+        case "gpa":
+            GPACalculatorView()
+        case "links":
+            QuickLinksView()
+        case "calendar":
+            SchoolCalendarView()
+        case "library":
+            LibraryScanView()
+        case "scores":
+            TranscriptView()
+        case "leave":
+            LeaveApplicationView()
+        default:
+            EmptyView()
+        }
     }
 }
 
