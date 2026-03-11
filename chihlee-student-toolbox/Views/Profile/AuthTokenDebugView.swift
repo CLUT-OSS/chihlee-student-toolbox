@@ -1,15 +1,19 @@
 import SwiftUI
+import SwiftData
 import UIKit
 
 struct AuthTokenDebugView: View {
     let token: String?
     let metrics: AuthDebugMetrics
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var showCopiedAlert = false
     @State private var cfRay: String?
     @State private var traceFields: [(key: String, value: String)] = []
     @State private var isLoadingTrace = false
+    @State private var isTriggeringLiveActivity = false
+    @State private var liveActivityDebugMessage: String?
 
     private var tokenText: String {
         guard let token, !token.isEmpty else { return "No token found" }
@@ -40,6 +44,8 @@ struct AuthTokenDebugView: View {
                     metricsPanel
 
                     proxyMetricsPanel
+
+                    liveActivityDebugPanel
 
                     Button {
                         copyToken()
@@ -143,6 +149,47 @@ struct AuthTokenDebugView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    private var liveActivityDebugPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Live Activity Debug")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                Button("Before Class") {
+                    Task { await triggerLiveActivityDebug(.countdown) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isTriggeringLiveActivity)
+
+                Button("In Class") {
+                    Task { await triggerLiveActivityDebug(.inClass) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isTriggeringLiveActivity)
+
+                Button("End") {
+                    Task {
+                        isTriggeringLiveActivity = true
+                        await ClassLiveActivityCoordinator.shared.endAllActivities()
+                        liveActivityDebugMessage = "Ended all class Live Activities"
+                        isTriggeringLiveActivity = false
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isTriggeringLiveActivity)
+            }
+
+            if let liveActivityDebugMessage {
+                Text(liveActivityDebugMessage)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(.footnote, design: .monospaced))
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
     private func fetchTrace() async {
         isLoadingTrace = true
         defer { isLoadingTrace = false }
@@ -171,5 +218,13 @@ struct AuthTokenDebugView: View {
         guard let token, !token.isEmpty else { return }
         UIPasteboard.general.string = token
         showCopiedAlert = true
+    }
+
+    @MainActor
+    private func triggerLiveActivityDebug(_ phase: ClassLiveActivityAttributes.ClassPhase) async {
+        isTriggeringLiveActivity = true
+        let result = await ClassLiveActivityCoordinator.shared.debugStartSimulation(phase: phase, context: modelContext)
+        liveActivityDebugMessage = result
+        isTriggeringLiveActivity = false
     }
 }

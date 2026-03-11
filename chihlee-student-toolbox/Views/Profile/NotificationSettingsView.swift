@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct NotificationSettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(ThemeStore.self) private var themeStore
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("scheduleShowNonTimedItems") private var scheduleShowNonTimedItems = true
+    @AppStorage("classLiveActivityEnabled") private var classLiveActivityEnabled = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -22,6 +24,8 @@ struct NotificationSettingsView: View {
             Toggle("作業到期提醒", isOn: $notificationsEnabled)
             Divider()
             Toggle("顯示非固定節次", isOn: $scheduleShowNonTimedItems)
+            Divider()
+            Toggle("上課 Live Activity", isOn: $classLiveActivityEnabled)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,5 +37,14 @@ struct NotificationSettingsView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
         )
+        .onChange(of: classLiveActivityEnabled) { _, enabled in
+            Task {
+                if enabled {
+                    await ClassLiveActivityCoordinator.shared.refresh(context: modelContext, enabled: true)
+                } else {
+                    await ClassLiveActivityCoordinator.shared.endAllActivities()
+                }
+            }
+        }
     }
 }

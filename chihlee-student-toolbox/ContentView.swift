@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("classLiveActivityEnabled") private var classLiveActivityEnabled = true
 
     private enum MainTab: Int, Hashable {
         case homework = 0
@@ -30,10 +32,29 @@ struct ContentView: View {
         }
         .task {
             await auth.validateSession()
+            await refreshClassLiveActivity()
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            Task { await auth.validateSession() }
+            Task {
+                await auth.validateSession()
+                await refreshClassLiveActivity()
+            }
+        }
+        .onChange(of: classLiveActivityEnabled) { _, enabled in
+            Task {
+                if enabled {
+                    await refreshClassLiveActivity()
+                } else {
+                    await ClassLiveActivityCoordinator.shared.endAllActivities()
+                }
+            }
+        }
+        .onChange(of: auth.isAuthenticated) { _, isAuthenticated in
+            guard !isAuthenticated else { return }
+            Task {
+                await ClassLiveActivityCoordinator.shared.endAllActivities()
+            }
         }
     }
 
@@ -77,6 +98,14 @@ struct ContentView: View {
                 }
                 selectedTab = newTab
             }
+        )
+    }
+
+    @MainActor
+    private func refreshClassLiveActivity() async {
+        await ClassLiveActivityCoordinator.shared.refresh(
+            context: modelContext,
+            enabled: classLiveActivityEnabled && auth.isAuthenticated
         )
     }
 }

@@ -5,6 +5,7 @@ struct ScheduleTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthViewModel.self) private var auth
     @AppStorage("scheduleShowNonTimedItems") private var showNonTimedItems = true
+    @AppStorage("classLiveActivityEnabled") private var classLiveActivityEnabled = true
     @State private var viewModel = ScheduleViewModel()
     @State private var showSyncError = false
 
@@ -70,6 +71,7 @@ struct ScheduleTabView: View {
 
     private func syncSchedule() async {
         await viewModel.syncFromAPI(token: auth.wrapperToken ?? "", context: modelContext)
+        await ClassLiveActivityCoordinator.shared.refresh(context: modelContext, enabled: classLiveActivityEnabled)
         if viewModel.syncError != nil { showSyncError = true }
     }
 }

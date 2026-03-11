@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A100001A3C1A000100000001 /* ClassLiveActivityWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000013C1A000100000001 /* ClassLiveActivityWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		A100001C3C1A000100000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E248C1F82F4F15E200385351 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000043C1A000100000001;
+			remoteInfo = ClassLiveActivityWidgetExtension;
+		};
 		E248C2102F4F15E400385351 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E248C1F82F4F15E200385351 /* Project object */;
@@ -23,13 +34,38 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		A100001B3C1A000100000001 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A100001A3C1A000100000001 /* ClassLiveActivityWidgetExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		A10000013C1A000100000001 /* ClassLiveActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClassLiveActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E248C2002F4F15E200385351 /* chihlee-student-toolbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "chihlee-student-toolbox.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E248C20F2F4F15E400385351 /* chihlee-student-toolboxTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "chihlee-student-toolboxTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E248C2192F4F15E400385351 /* chihlee-student-toolboxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "chihlee-student-toolboxUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A10000023C1A000100000001 /* ClassLiveActivityWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ClassLiveActivityWidgetExtension;
+			sourceTree = "<group>";
+		};
+		A10000033C1A000100000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		E248C2022F4F15E200385351 /* chihlee-student-toolbox */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "chihlee-student-toolbox";
@@ -48,6 +84,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A10000073C1A000100000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E248C1FD2F4F15E200385351 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -76,6 +119,8 @@
 			isa = PBXGroup;
 			children = (
 				E248C2022F4F15E200385351 /* chihlee-student-toolbox */,
+				A10000023C1A000100000001 /* ClassLiveActivityWidgetExtension */,
+				A10000033C1A000100000001 /* Shared */,
 				E248C2122F4F15E400385351 /* chihlee-student-toolboxTests */,
 				E248C21C2F4F15E400385351 /* chihlee-student-toolboxUITests */,
 				E248C2012F4F15E200385351 /* Products */,
@@ -86,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				E248C2002F4F15E200385351 /* chihlee-student-toolbox.app */,
+				A10000013C1A000100000001 /* ClassLiveActivityWidgetExtension.appex */,
 				E248C20F2F4F15E400385351 /* chihlee-student-toolboxTests.xctest */,
 				E248C2192F4F15E400385351 /* chihlee-student-toolboxUITests.xctest */,
 			);
@@ -95,6 +141,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		A10000043C1A000100000001 /* ClassLiveActivityWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A100000B3C1A000100000001 /* Build configuration list for PBXNativeTarget "ClassLiveActivityWidgetExtension" */;
+			buildPhases = (
+				A10000063C1A000100000001 /* Sources */,
+				A10000073C1A000100000001 /* Frameworks */,
+				A10000083C1A000100000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000023C1A000100000001 /* ClassLiveActivityWidgetExtension */,
+				A10000033C1A000100000001 /* Shared */,
+			);
+			name = ClassLiveActivityWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = ClassLiveActivityWidgetExtension;
+			productReference = A10000013C1A000100000001 /* ClassLiveActivityWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E248C1FF2F4F15E200385351 /* chihlee-student-toolbox */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E248C2232F4F15E400385351 /* Build configuration list for PBXNativeTarget "chihlee-student-toolbox" */;
@@ -102,12 +171,15 @@
 				E248C1FC2F4F15E200385351 /* Sources */,
 				E248C1FD2F4F15E200385351 /* Frameworks */,
 				E248C1FE2F4F15E200385351 /* Resources */,
+				A100001B3C1A000100000001 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A100001D3C1A000100000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				A10000033C1A000100000001 /* Shared */,
 				E248C2022F4F15E200385351 /* chihlee-student-toolbox */,
 			);
 			name = "chihlee-student-toolbox";
@@ -173,6 +245,9 @@
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					A10000043C1A000100000001 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					E248C1FF2F4F15E200385351 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -200,6 +275,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				A10000043C1A000100000001 /* ClassLiveActivityWidgetExtension */,
 				E248C1FF2F4F15E200385351 /* chihlee-student-toolbox */,
 				E248C20E2F4F15E400385351 /* chihlee-student-toolboxTests */,
 				E248C2182F4F15E400385351 /* chihlee-student-toolboxUITests */,
@@ -208,6 +284,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A10000083C1A000100000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E248C1FE2F4F15E200385351 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,6 +315,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A10000063C1A000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E248C1FC2F4F15E200385351 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +346,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		A100001D3C1A000100000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000043C1A000100000001 /* ClassLiveActivityWidgetExtension */;
+			targetProxy = A100001C3C1A000100000001 /* PBXContainerItemProxy */;
+		};
 		E248C2112F4F15E400385351 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E248C1FF2F4F15E200385351 /* chihlee-student-toolbox */;
@@ -269,6 +364,58 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		A10000093C1A000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CY7Q757DQN;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClassLiveActivityWidgetExtension-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "net.thisisch.chihlee-student-toolbox-local.ClassLiveActivityWidgetExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A100000A3C1A000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CY7Q757DQN;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClassLiveActivityWidgetExtension-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "net.thisisch.chihlee-student-toolbox-local.ClassLiveActivityWidgetExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		E248C2212F4F15E400385351 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -403,6 +550,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -435,6 +583,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -529,6 +678,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		A100000B3C1A000100000001 /* Build configuration list for PBXNativeTarget "ClassLiveActivityWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000093C1A000100000001 /* Debug */,
+				A100000A3C1A000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E248C1FB2F4F15E200385351 /* Build configuration list for PBXProject "chihlee-student-toolbox" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
