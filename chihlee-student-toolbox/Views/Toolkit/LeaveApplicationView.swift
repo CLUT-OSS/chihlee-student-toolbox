@@ -307,8 +307,12 @@ struct LeaveApplicationView: View {
     private var recordsListView: some View {
         VStack(spacing: 10) {
             if viewModel.isLoadingRecords && viewModel.records.isEmpty {
-                ProgressView("載入請假紀錄…")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ProgressView {
+                    Text("載入請假紀錄…")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 180, alignment: .center)
             } else if let error = viewModel.recordsError {
                 ContentUnavailableView("載入失敗", systemImage: "exclamationmark.triangle", description: Text(error))
                     .frame(maxWidth: .infinity)
@@ -318,27 +322,38 @@ struct LeaveApplicationView: View {
             } else {
                 ForEach(viewModel.records) { record in
                     Button {
+                        guard !viewModel.isLoadingDetail else { return }
                         Task { await viewModel.openDetail(record: record, token: auth.wrapperToken) }
                     } label: {
-                        LeaveRecordCard(record: record)
+                        LeaveRecordCard(
+                            record: record,
+                            isLoadingDetail: viewModel.loadingDetailRecordID == record.recordID
+                        )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(StaticPlainButtonStyle())
                 }
             }
 
             Button {
                 Task { await viewModel.loadRecords(token: auth.wrapperToken) }
             } label: {
-                if viewModel.isLoadingRecords {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                } else {
+                ZStack {
                     Text("重新整理")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .opacity(viewModel.isLoadingRecords ? 0 : 1)
+
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("載入中…")
+                    }
+                    .font(.body)
+                    .opacity(viewModel.isLoadingRecords ? 1 : 0)
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 20)
+                .padding(.vertical, 10)
             }
+            .animation(nil, value: viewModel.isLoadingRecords)
             .buttonStyle(.bordered)
             .disabled(viewModel.isLoadingRecords)
         }
@@ -488,14 +503,29 @@ private struct PrimaryActionButtonStyle: ButtonStyle {
     }
 }
 
+private struct StaticPlainButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
+}
+
 private struct LeaveRecordCard: View {
     let record: LeaveApplicationViewModel.LeaveRecordItem
+    let isLoadingDetail: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 LeaveStatusBadge(status: record.status)
                 Spacer()
+                if isLoadingDetail {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Text(displayDate)

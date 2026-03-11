@@ -104,6 +104,7 @@ final class LeaveApplicationViewModel {
 
     var detail: LeaveRecordDetailState?
     var isLoadingDetail = false
+    var loadingDetailRecordID: String?
     var detailError: String?
     var isCancelling = false
 
@@ -278,14 +279,19 @@ final class LeaveApplicationViewModel {
     }
 
     func openDetail(record: LeaveRecordItem, token: String?) async {
+        guard !isLoadingDetail else { return }
         guard let token, !token.isEmpty else {
             detailError = "尚未登入，無法讀取明細。"
             return
         }
 
         isLoadingDetail = true
+        loadingDetailRecordID = record.recordID
         detailError = nil
-        defer { isLoadingDetail = false }
+        defer {
+            isLoadingDetail = false
+            loadingDetailRecordID = nil
+        }
 
         do {
             let payload = try await APIService.fetchIlifeLeaveRecordDetail(token: token, recordID: record.recordID)

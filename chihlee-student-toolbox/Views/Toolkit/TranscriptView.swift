@@ -1,10 +1,129 @@
 import SwiftUI
 
+struct TranscriptSemesterRanking: Equatable {
+    let classRank: Int
+    let classTotal: Int
+    let classPercentile: Double?
+    let departmentRank: Int
+    let departmentTotal: Int
+    let departmentPercentile: Double?
+}
+
+enum TranscriptRankingMath {
+    static func topPct(rank: Int, total: Int) -> Double? {
+        guard total > 0, rank > 0, rank <= total else { return nil }
+        let raw = 100 - (Double(rank) / Double(total) * 100)
+        return min(max(raw, 0), 100)
+    }
+
+    static func topPctColorHex(_ value: Double?) -> String {
+        guard let value else { return "#475569" }
+        switch value {
+        case 75...: return "#4ade80"
+        case 50...: return "#60a5fa"
+        case 25...: return "#facc15"
+        default:    return "#fb923c"
+        }
+    }
+
+    static func semesterKey(academicYear: String, semester: Int) -> String? {
+        let year = academicYear.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !year.isEmpty, semester > 0 else { return nil }
+        return "\(year)-\(semester)"
+    }
+
+    static func normalizeSemesterCode(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let compact = trimmed.replacingOccurrences(of: " ", with: "")
+        if compact.contains("學年度") {
+            let year = leadingDigits(in: compact)
+            let semester: Int?
+            if compact.contains("上學期") {
+                semester = 1
+            } else if compact.contains("下學期") {
+                semester = 2
+            } else {
+                semester = nil
+            }
+            if let year, let semester {
+                return "\(year)-\(semester)"
+            }
+        }
+
+        for separator in ["-", "/", "_"] {
+            let parts = compact.split(separator: Character(separator), maxSplits: 1).map(String.init)
+            if parts.count == 2,
+               let year = onlyDigits(parts[0]),
+               let semester = Int(parts[1]),
+               semester > 0 {
+                return "\(year)-\(semester)"
+            }
+        }
+
+        if let digits = onlyDigits(compact), digits.count >= 2,
+           let semesterChar = digits.last,
+           let semester = Int(String(semesterChar)),
+           semester > 0 {
+            let year = String(digits.dropLast())
+            guard !year.isEmpty else { return nil }
+            return "\(year)-\(semester)"
+        }
+
+        return nil
+    }
+
+    static func semesterAliases(academicYear: String, semester: Int) -> [String] {
+        guard let canonical = semesterKey(academicYear: academicYear, semester: semester) else { return [] }
+        let year = canonical.split(separator: "-").first.map(String.init) ?? academicYear
+        let term = semester == 1 ? "上學期" : "下學期"
+        return [
+            canonical,
+            "\(year)\(semester)",
+            "\(year) 學年度-\(term)",
+        ]
+    }
+
+    static func buildRankingMap(from rankings: [APIIlifeScoreRanking]) -> [String: TranscriptSemesterRanking] {
+        rankings.reduce(into: [:]) { map, ranking in
+            guard semesterKey(academicYear: ranking.academicYear, semester: ranking.semester) != nil else { return }
+            let value = TranscriptSemesterRanking(
+                classRank: ranking.classRank.rank,
+                classTotal: ranking.classRank.total,
+                classPercentile: normalizePercentile(ranking.classRank.percentile),
+                departmentRank: ranking.departmentRank.rank,
+                departmentTotal: ranking.departmentRank.total,
+                departmentPercentile: normalizePercentile(ranking.departmentRank.percentile)
+            )
+            for key in semesterAliases(academicYear: ranking.academicYear, semester: ranking.semester) {
+                map[key] = value
+            }
+        }
+    }
+
+    static func normalizePercentile(_ value: Double?) -> Double? {
+        guard let value else { return nil }
+        return min(max(value, 0), 100)
+    }
+
+    private static func leadingDigits(in raw: String) -> String? {
+        let digits = raw.prefix { $0.isNumber }
+        return digits.isEmpty ? nil : String(digits)
+    }
+
+    private static func onlyDigits(_ raw: String) -> String? {
+        let digits = raw.filter(\.isNumber)
+        return digits.isEmpty ? nil : digits
+    }
+}
+
 // MARK: - TranscriptView
 
 struct TranscriptView: View {
     @Environment(AuthViewModel.self) private var auth
     @State private var semesters: [APISemesterScore] = []
+    @State private var rankingsBySemester: [String: TranscriptSemesterRanking] = [:]
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var openSemester: Int? = nil
@@ -34,6 +153,7 @@ struct TranscriptView: View {
                         ForEach(Array(semesters.enumerated()), id: \.element.semester) { semIdx, sem in
                             SemesterCardView(
                                 semester: sem,
+                                ranking: ranking(for: sem),
                                 isOpen: openSemester == semIdx,
                                 openCourseIndex: openCourse[semIdx],
                                 onToggleSemester: {
@@ -57,7 +177,8 @@ struct TranscriptView: View {
                                     }
                                 },
                                 gradeColor: gradeColor,
-                                categoryColor: categoryColor
+                                categoryColor: categoryColor,
+                                rankColor: rankColor
                             )
                         }
                     }
@@ -89,7 +210,24 @@ struct TranscriptView: View {
         isLoading = true
         errorMessage = nil
         do {
-            semesters = try await APIService.fetchScores(token: auth.wrapperToken ?? "")
+            let token = auth.wrapperToken ?? ""
+            async let scoresTask = APIService.fetchScores(token: token)
+            async let rankTask = APIService.fetchIlifeScoreRank(token: token)
+
+            let loadedSemesters = try await scoresTask
+            let loadedRankings: [APIIlifeScoreRanking]
+            do {
+                let rankResponse = try await rankTask
+                loadedRankings = rankResponse.rankings
+            } catch {
+#if DEBUG
+                print("fetchIlifeScoreRank failed: \(error)")
+#endif
+                loadedRankings = []
+            }
+
+            semesters = loadedSemesters
+            rankingsBySemester = TranscriptRankingMath.buildRankingMap(from: loadedRankings)
             openSemester = nil
             openCourse = [:]
         } catch {
@@ -126,21 +264,56 @@ struct TranscriptView: View {
         default:    return .gray.opacity(0.3)
         }
     }
+
+    private func rankColor(_ topPctValue: Double?) -> Color {
+        ColorHelper.color(from: TranscriptRankingMath.topPctColorHex(topPctValue))
+    }
+
+    private func ranking(for semester: APISemesterScore) -> TranscriptSemesterRanking? {
+        let directKeys = [
+            semester.semester.trimmingCharacters(in: .whitespacesAndNewlines),
+            semester.semesterTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+        ].filter { !$0.isEmpty }
+
+        for key in directKeys {
+            if let match = rankingsBySemester[key] {
+                return match
+            }
+        }
+
+        if let normalizedCode = TranscriptRankingMath.normalizeSemesterCode(semester.semester),
+           let match = rankingsBySemester[normalizedCode] {
+            return match
+        }
+        if let normalizedTitle = TranscriptRankingMath.normalizeSemesterCode(semester.semesterTitle),
+           let match = rankingsBySemester[normalizedTitle] {
+            return match
+        }
+        return nil
+    }
 }
 
 // MARK: - SemesterCardView
 
 private struct SemesterCardView: View {
     let semester: APISemesterScore
+    let ranking: TranscriptSemesterRanking?
     let isOpen: Bool
     let openCourseIndex: Int?
     let onToggleSemester: () -> Void
     let onToggleCourse: (Int) -> Void
     let gradeColor: (String?) -> Color
     let categoryColor: (String?) -> Color
+    let rankColor: (Double?) -> Color
 
     private var courseCount: Int { semester.courses.count }
     private var totalCredits: Double { semester.courses.compactMap(\.credits).reduce(0, +) }
+    private var courseMetaDisplay: String {
+        if totalCredits > 0 {
+            return "\(courseCount)門課 · \(String(format: "%.0f", totalCredits))學分"
+        }
+        return "\(courseCount)門課"
+    }
 
     private var semAvgDisplay: String? {
         semester.summary?.semesterAvg.flatMap {
@@ -153,42 +326,51 @@ private struct SemesterCardView: View {
         VStack(spacing: 0) {
             // Header
             Button(action: onToggleSemester) {
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .center, spacing: 8) {
                         Text(semester.semesterTitle)
                             .font(.headline)
                             .foregroundStyle(.primary)
+                            .lineLimit(1)
 
-                        HStack(spacing: 8) {
-                            Text("\(courseCount) 科")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if totalCredits > 0 {
-                                Text("共 \(String(format: "%.0f", totalCredits)) 學分")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        if let avg = semAvgDisplay {
-                            Text(avg)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(gradeColor(avg))
-                        } else {
-                            Text("成績未公布")
-                                .font(.footnote)
-                                .foregroundStyle(ColorHelper.color(from: "#475569"))
-                        }
+                        Spacer()
 
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isOpen ? 90 : 0))
                             .animation(.easeInOut(duration: 0.25), value: isOpen)
+                    }
+
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(courseMetaDisplay)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        HStack(spacing: 8) {
+                            if let avg = semAvgDisplay {
+                                Text("學期均 \(avg)")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(gradeColor(avg))
+                            } else {
+                                Text("成績未公布")
+                                    .font(.footnote)
+                                    .foregroundStyle(ColorHelper.color(from: "#475569"))
+                            }
+
+                            if let ranking {
+                                Rectangle()
+                                    .fill(Color.secondary.opacity(0.35))
+                                    .frame(width: 1, height: 12)
+
+                                Text("班排 \(ranking.classRank)/\(ranking.classTotal)")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(rankColor(ranking.classPercentile))
+                            }
+                        }
+                        .lineLimit(1)
                     }
                 }
                 .padding()
@@ -199,7 +381,22 @@ private struct SemesterCardView: View {
                 Divider().padding(.horizontal)
 
                 VStack(spacing: 0) {
-                    if let summary = semester.summary, hasMeaningfulSummary(summary) {
+                    let showsSummary = semester.summary.map(hasMeaningfulSummary) ?? false
+
+                    if let ranking {
+                        RankingStrip(
+                            ranking: ranking,
+                            rankColor: rankColor
+                        )
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                    }
+
+                    if ranking != nil && showsSummary {
+                        Divider().padding(.horizontal)
+                    }
+
+                    if let summary = semester.summary, showsSummary {
                         SummaryBar(summary: summary, gradeColor: gradeColor)
                             .padding(.horizontal)
                             .padding(.vertical, 10)
@@ -285,6 +482,90 @@ private struct SummaryBar: View {
         guard let s else { return nil }
         let t = s.trimmingCharacters(in: .whitespaces)
         return (t.isEmpty || t == "--") ? nil : t
+    }
+}
+
+// MARK: - RankingStrip
+
+private struct RankingStrip: View {
+    let ranking: TranscriptSemesterRanking
+    let rankColor: (Double?) -> Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            rankingCard(
+                title: "班級名次",
+                rank: ranking.classRank,
+                total: ranking.classTotal,
+                pct: ranking.classPercentile
+            )
+            rankingCard(
+                title: "系科名次",
+                rank: ranking.departmentRank,
+                total: ranking.departmentTotal,
+                pct: ranking.departmentPercentile
+            )
+        }
+    }
+
+    private func rankingCard(title: String, rank: Int, total: Int, pct: Double?) -> some View {
+        let color = rankColor(pct)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(rank)")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+                Text("/ \(total)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+                Spacer(minLength: 0)
+                Text(topPctLabel(pct))
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .allowsTightening(true)
+                    .background(color.opacity(0.16))
+                    .foregroundStyle(color)
+                    .clipShape(Capsule())
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.white.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(color.opacity(0.65))
+                        .frame(width: proxy.size.width * CGFloat((pct ?? 0) / 100))
+                }
+            }
+            .frame(height: 3)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.03))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.13), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func topPctLabel(_ value: Double?) -> String {
+        guard let value else { return "前--" }
+        return String(format: "前%.1f%%", value)
     }
 }
 

@@ -27,11 +27,6 @@ struct ToolkitTabView: View {
     private var toolboxGrid: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("工具箱")
-                    .font(.title2.weight(.bold))
-                    .padding(.horizontal)
-                    .padding(.top, 6)
-
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                     ForEach(tools) { tool in
                         NavigationLink {
@@ -46,7 +41,8 @@ struct ToolkitTabView: View {
                 .padding(.bottom, 12)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("工具箱")
+        .navigationBarTitleDisplayMode(.large)
     }
 
     private func toolCard(name: String, icon: String, color: Color) -> some View {

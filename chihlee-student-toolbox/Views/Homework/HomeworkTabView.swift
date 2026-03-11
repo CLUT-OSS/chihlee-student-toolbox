@@ -112,7 +112,7 @@ struct HomeworkTabView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task {
-                            await refreshHomework()
+                            await refreshHomework(forceRemote: true)
                         }
                     } label: {
                         if isRefreshing {
@@ -125,20 +125,23 @@ struct HomeworkTabView: View {
                 }
             }
             .task {
-                await refreshHomework()
+                viewModel.loadAssignments(context: modelContext)
                 viewModel.setViewMode(isMonth: viewModel.showMonthView)
+            }
+            .task(id: "\(viewModel.dlcFetchScopeKey)|\(auth.wrapperToken ?? "")") {
+                await viewModel.fetchDlcEvents(token: auth.wrapperToken ?? "")
             }
         }
     }
 
     @MainActor
-    private func refreshHomework() async {
+    private func refreshHomework(forceRemote: Bool = false) async {
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
 
         viewModel.loadAssignments(context: modelContext)
-        await viewModel.fetchDlcEvents(token: auth.wrapperToken ?? "")
+        await viewModel.fetchDlcEvents(token: auth.wrapperToken ?? "", force: forceRemote)
     }
 }
 

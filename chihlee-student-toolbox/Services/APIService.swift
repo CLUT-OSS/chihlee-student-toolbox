@@ -54,6 +54,57 @@ struct IlifeAttendanceRecord: Decodable, Identifiable {
     }
 }
 
+// MARK: - iLife Digital Pass Models
+
+struct IlifeDigitalPass: Decodable {
+    let department: String
+    let studentClass: String
+    let studentID: String
+    let name: String
+    let enrollmentStatus: String
+    let activityFeeStatus: String
+    let registrationStatus: String
+
+    init(
+        department: String = "",
+        studentClass: String = "",
+        studentID: String = "",
+        name: String = "",
+        enrollmentStatus: String = "",
+        activityFeeStatus: String = "",
+        registrationStatus: String = ""
+    ) {
+        self.department = department
+        self.studentClass = studentClass
+        self.studentID = studentID
+        self.name = name
+        self.enrollmentStatus = enrollmentStatus
+        self.activityFeeStatus = activityFeeStatus
+        self.registrationStatus = registrationStatus
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        department = try container.decodeIfPresent(String.self, forKey: .department) ?? ""
+        studentClass = try container.decodeIfPresent(String.self, forKey: .studentClass) ?? ""
+        studentID = try container.decodeIfPresent(String.self, forKey: .studentID) ?? ""
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        enrollmentStatus = try container.decodeIfPresent(String.self, forKey: .enrollmentStatus) ?? ""
+        activityFeeStatus = try container.decodeIfPresent(String.self, forKey: .activityFeeStatus) ?? ""
+        registrationStatus = try container.decodeIfPresent(String.self, forKey: .registrationStatus) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case department
+        case studentClass = "class"
+        case studentID = "student_id"
+        case name
+        case enrollmentStatus = "enrollment_status"
+        case activityFeeStatus = "activity_fee_status"
+        case registrationStatus = "registration_status"
+    }
+}
+
 // MARK: - iLife Leave Models
 
 struct IlifeLeaveTypeOption: Decodable, Identifiable {
@@ -350,6 +401,38 @@ private extension KeyedDecodingContainer {
         }
         return nil
     }
+
+    func decodeLossyInt(forKey key: Key) throws -> Int? {
+        if let value = try decodeIfPresent(Int.self, forKey: key) {
+            return value
+        }
+        if let value = try decodeIfPresent(String.self, forKey: key) {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let intValue = Int(trimmed) {
+                return intValue
+            }
+            if let doubleValue = Double(trimmed) {
+                return Int(doubleValue.rounded())
+            }
+        }
+        if let value = try decodeIfPresent(Double.self, forKey: key) {
+            return Int(value.rounded())
+        }
+        return nil
+    }
+
+    func decodeLossyDouble(forKey key: Key) throws -> Double? {
+        if let value = try decodeIfPresent(Double.self, forKey: key) {
+            return value
+        }
+        if let value = try decodeIfPresent(Int.self, forKey: key) {
+            return Double(value)
+        }
+        if let value = try decodeIfPresent(String.self, forKey: key) {
+            return Double(value.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        return nil
+    }
 }
 
 // MARK: - DLC Calendar Models
@@ -369,6 +452,8 @@ struct DlcCalendarEvent: Decodable, Identifiable {
     let subject: String
     let content: String
     let sourceTag: String
+    private let normalizedStartDay: Date?
+    private let normalizedEndDay: Date?
 
     private static let dateFormatters: [DateFormatter] = {
         let shortDate = DateFormatter()
@@ -390,11 +475,17 @@ struct DlcCalendarEvent: Decodable, Identifiable {
     }
 
     var date: Date? {
-        Self.parsedDateRange(from: dateString)?.start
+        normalizedStartDay
     }
 
     var endDate: Date? {
-        Self.parsedDateRange(from: dateString)?.end
+        normalizedEndDay
+    }
+
+    var dayRange: ClosedRange<Date>? {
+        guard let start = normalizedStartDay else { return nil }
+        let end = normalizedEndDay ?? start
+        return start ... end
     }
 
     var displaySubject: String {
@@ -412,16 +503,11 @@ struct DlcCalendarEvent: Decodable, Identifiable {
     }
 
     func occurs(on day: Date) -> Bool {
-        guard let startDate = date else { return false }
+        guard let startDay = normalizedStartDay else { return false }
         let calendar = Calendar.current
         let targetDay = calendar.startOfDay(for: day)
-        let startDay = calendar.startOfDay(for: startDate)
-
-        if let endDate {
-            let endDay = calendar.startOfDay(for: endDate)
-            return targetDay >= startDay && targetDay <= endDay
-        }
-        return calendar.isDate(targetDay, inSameDayAs: startDay)
+        let endDay = normalizedEndDay ?? startDay
+        return targetDay >= startDay && targetDay <= endDay
     }
 
     private static func parsedDateRange(from rawDate: String) -> ParsedDateRange? {
@@ -558,6 +644,9 @@ struct DlcCalendarEvent: Decodable, Identifiable {
         subject = cleanedTitle.isEmpty ? "未命名事件" : cleanedTitle
         content = cleanedTitle
         sourceTag = "學校行事曆"
+        let parsedRange = Self.parsedDateRange(from: cleanedDate)
+        normalizedStartDay = parsedRange.map { Calendar.current.startOfDay(for: $0.start) }
+        normalizedEndDay = parsedRange?.end.map { Calendar.current.startOfDay(for: $0) }
     }
 
     init(from decoder: Decoder) throws {
@@ -600,6 +689,10 @@ struct DlcCalendarEvent: Decodable, Identifiable {
         } else {
             sourceTag = "數位學院行事曆"
         }
+
+        let parsedRange = Self.parsedDateRange(from: dateString)
+        normalizedStartDay = parsedRange.map { Calendar.current.startOfDay(for: $0.start) }
+        normalizedEndDay = parsedRange?.end.map { Calendar.current.startOfDay(for: $0) }
     }
 
     private static func firstNonEmpty(_ values: [String?]) -> String? {
@@ -720,6 +813,127 @@ struct APIScoreSummary: Decodable {
         case creditsTaken  = "credits_taken"
         case creditsEarned = "credits_earned"
         case conductScore  = "conduct_score"
+    }
+}
+
+struct APIIlifeScoreRankResponse: Decodable {
+    let status: String?
+    let student: APIIlifeScoreRankStudent?
+    let rankings: [APIIlifeScoreRanking]
+    let notes: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case student
+        case rankings
+        case notes
+        case data
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if container.contains(.rankings) {
+            status = try container.decodeIfPresent(String.self, forKey: .status)
+            student = try container.decodeIfPresent(APIIlifeScoreRankStudent.self, forKey: .student)
+            rankings = try container.decodeIfPresent([APIIlifeScoreRanking].self, forKey: .rankings) ?? []
+            notes = try container.decodeIfPresent([String].self, forKey: .notes)
+            return
+        }
+
+        if container.contains(.data) {
+            let nested = try container.nestedContainer(keyedBy: CodingKeys.self, forKey: .data)
+            status = try container.decodeIfPresent(String.self, forKey: .status)
+                ?? nested.decodeIfPresent(String.self, forKey: .status)
+            student = try nested.decodeIfPresent(APIIlifeScoreRankStudent.self, forKey: .student)
+            rankings = try nested.decodeIfPresent([APIIlifeScoreRanking].self, forKey: .rankings) ?? []
+            notes = try nested.decodeIfPresent([String].self, forKey: .notes)
+            return
+        }
+
+        status = nil
+        student = nil
+        rankings = []
+        notes = nil
+    }
+}
+
+struct APIIlifeScoreRankStudent: Decodable {
+    let id: String?
+    let name: String?
+    let department: String?
+    let `class`: String?
+    let program: String?
+    let enrollmentStatus: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case department
+        case `class`
+        case program
+        case enrollmentStatus = "enrollment_status"
+    }
+}
+
+struct APIIlifeScoreRanking: Decodable {
+    let academicYear: String
+    let semester: Int
+    let classRank: APIIlifeRankStat
+    let departmentRank: APIIlifeRankStat
+
+    enum CodingKeys: String, CodingKey {
+        case academicYear = "academic_year"
+        case semester
+        case classRank = "class_rank"
+        case departmentRank = "department_rank"
+    }
+
+    init(
+        academicYear: String,
+        semester: Int,
+        classRank: APIIlifeRankStat,
+        departmentRank: APIIlifeRankStat
+    ) {
+        self.academicYear = academicYear
+        self.semester = semester
+        self.classRank = classRank
+        self.departmentRank = departmentRank
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        academicYear = try container.decodeLossyString(forKey: .academicYear) ?? ""
+        semester = try container.decodeLossyInt(forKey: .semester) ?? 0
+        classRank = try container.decodeIfPresent(APIIlifeRankStat.self, forKey: .classRank)
+            ?? APIIlifeRankStat(rank: 0, total: 0, percentile: nil)
+        departmentRank = try container.decodeIfPresent(APIIlifeRankStat.self, forKey: .departmentRank)
+            ?? APIIlifeRankStat(rank: 0, total: 0, percentile: nil)
+    }
+}
+
+struct APIIlifeRankStat: Decodable {
+    let rank: Int
+    let total: Int
+    let percentile: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case rank
+        case total
+        case percentile
+    }
+
+    init(rank: Int, total: Int, percentile: Double?) {
+        self.rank = rank
+        self.total = total
+        self.percentile = percentile
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rank = try container.decodeLossyInt(forKey: .rank) ?? 0
+        total = try container.decodeLossyInt(forKey: .total) ?? 0
+        percentile = try container.decodeLossyDouble(forKey: .percentile)
     }
 }
 
@@ -895,6 +1109,84 @@ struct APIService {
 
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
         return envelope.data?.scores ?? []
+    }
+
+    static func fetchIlifeScoreRank(token: String) async throws -> APIIlifeScoreRankResponse {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/score_rank")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        return try JSONDecoder().decode(APIIlifeScoreRankResponse.self, from: data)
+    }
+
+    static func fetchIlifeDigitalPass(token: String) async throws -> IlifeDigitalPass {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/digital_pass")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+
+        struct Envelope: Decodable {
+            let data: IlifeDigitalPass?
+            let error: ApiErrorPayload?
+        }
+
+        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        if let payload = envelope.data {
+            return payload
+        }
+        if let message = envelope.error?.message, !message.isEmpty {
+            throw AuthError.serverError(message)
+        }
+        return IlifeDigitalPass()
+    }
+
+    static func fetchIlifeDigitalPassPhoto(token: String) async throws -> Data {
+        let url = URL(string: "\(baseURL)/api/v1/ilife/digital_pass_photo")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+        guard !data.isEmpty else {
+            throw AuthError.decodingError
+        }
+        return data
+    }
+
+    static func fetchIlifeDigitalPassQR(token: String, q: String, format: String = "jpg") async throws -> Data {
+        var components = URLComponents(string: "\(baseURL)/api/v1/ilife/digital_pass_qr")!
+        components.queryItems = [
+            URLQueryItem(name: "q", value: q),
+            URLQueryItem(name: "format", value: format),
+        ]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("HTTP \(http.statusCode)")
+        }
+        guard !data.isEmpty else {
+            throw AuthError.decodingError
+        }
+        return data
     }
 
     static func fetchIlifeAttendance(token: String) async throws -> [IlifeAttendanceRecord] {
