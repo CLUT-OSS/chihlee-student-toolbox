@@ -12,7 +12,6 @@ struct ProfileTabView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    schoolHeaderCard
                     digitalPassMainCard
                     detailsCard
                     currentTimeCard
@@ -40,43 +39,43 @@ struct ProfileTabView: View {
         }
     }
 
-    private var schoolHeaderCard: some View {
-        card {
-            HStack(spacing: 12) {
-                Text("🎓")
-                    .font(.title3)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("致理科技大學")
-                        .font(.headline.weight(.semibold))
-                    Text("Chihlee University of Technology")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-        }
-    }
-
     private var digitalPassMainCard: some View {
         card {
-            HStack(alignment: .top, spacing: 12) {
-                photoPanel
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(displayName)
-                        .font(.title3.weight(.bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .allowsTightening(true)
-                    Text(displayStudentID)
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .allowsTightening(true)
-                    enrollmentBadge
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image("SchoolLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 26, height: 26)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("致理科技大學")
+                            .font(.headline.weight(.semibold))
+                        Text("Chihlee University of Technology")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                 }
-                Spacer(minLength: 0)
-                qrPanel
+                Divider()
+                HStack(alignment: .top, spacing: 12) {
+                    photoPanel
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(displayName)
+                            .font(.title3.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .allowsTightening(true)
+                        Text(displayStudentID)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .allowsTightening(true)
+                        enrollmentBadge
+                    }
+                    Spacer(minLength: 0)
+                    qrPanel
+                }
             }
         }
     }
