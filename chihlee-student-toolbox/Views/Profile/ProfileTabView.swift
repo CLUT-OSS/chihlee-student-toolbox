@@ -101,11 +101,11 @@ struct ProfileTabView: View {
             VStack(spacing: 10) {
                 Text("目前時間")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.secondary)
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(Self.timeFormatter.string(from: context.date))
                         .font(.title3.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                 }
             }
             .frame(maxWidth: .infinity)
