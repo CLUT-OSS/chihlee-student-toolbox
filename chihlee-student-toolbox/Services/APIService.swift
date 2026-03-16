@@ -937,6 +937,35 @@ struct APIIlifeRankStat: Decodable {
     }
 }
 
+enum LiveActivityPatchOutcome {
+    case patched
+    case needsRegisterFallback
+}
+
+struct LiveActivityUnregisterData: Decodable {
+    let message: String
+    let removedDevices: Int
+
+    enum CodingKeys: String, CodingKey {
+        case message
+        case removedDevices = "removed_devices"
+    }
+}
+
+struct LiveActivityDebugRunData: Decodable {
+    let runID: String
+    let scheduledAt: String
+    let targetStudents: Int
+    let targetDevices: Int
+
+    enum CodingKeys: String, CodingKey {
+        case runID = "run_id"
+        case scheduledAt = "scheduled_at"
+        case targetStudents = "target_students"
+        case targetDevices = "target_devices"
+    }
+}
+
 // MARK: - Service
 
 struct APIService {
@@ -1403,6 +1432,186 @@ struct APIService {
             return IlifeCancelLeaveResult(success: false, message: message, details: [])
         }
         return IlifeCancelLeaveResult(success: false, message: "取消失敗", details: [])
+    }
+
+    static func patchLiveActivityToken(
+        token: String,
+        idfv: String,
+        pushToStartToken: String
+    ) async throws -> LiveActivityPatchOutcome {
+        let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        struct Body: Encodable {
+            let idfv: String
+            let pushToStartToken: String
+
+            enum CodingKeys: String, CodingKey {
+                case idfv
+                case pushToStartToken = "push_to_start_token"
+            }
+        }
+        struct Envelope: Decodable {
+            let error: ApiErrorPayload?
+        }
+
+        request.httpBody = try JSONEncoder().encode(Body(idfv: idfv, pushToStartToken: pushToStartToken))
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+
+        switch http.statusCode {
+        case 200:
+            return .patched
+        case 400:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            if shouldFallbackToLiveActivityRegister(statusCode: http.statusCode, errorMessage: envelope?.error?.message) {
+                return .needsRegisterFallback
+            }
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        case 401:
+            throw AuthError.invalidCredentials
+        case 429:
+            throw AuthError.tooManyRequests
+        default:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        }
+    }
+
+    static func registerLiveActivityDevice(
+        token: String,
+        idfv: String,
+        bundleID: String,
+        pushToStartToken: String
+    ) async throws {
+        let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        struct Body: Encodable {
+            let idfv: String
+            let bundleID: String
+            let pushToStartToken: String
+
+            enum CodingKeys: String, CodingKey {
+                case idfv
+                case bundleID = "bundle_id"
+                case pushToStartToken = "push_to_start_token"
+            }
+        }
+        struct Envelope: Decodable {
+            let error: ApiErrorPayload?
+        }
+
+        request.httpBody = try JSONEncoder().encode(
+            Body(idfv: idfv, bundleID: bundleID, pushToStartToken: pushToStartToken)
+        )
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+
+        switch http.statusCode {
+        case 200:
+            return
+        case 401:
+            throw AuthError.invalidCredentials
+        case 429:
+            throw AuthError.tooManyRequests
+        default:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        }
+    }
+
+    static func unregisterLiveActivityDevice(
+        token: String,
+        idfv: String,
+        bundleID: String? = nil
+    ) async throws -> LiveActivityUnregisterData {
+        let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        struct Body: Encodable {
+            let idfv: String
+            let bundleID: String?
+
+            enum CodingKeys: String, CodingKey {
+                case idfv
+                case bundleID = "bundle_id"
+            }
+        }
+        struct Envelope: Decodable {
+            let data: LiveActivityUnregisterData?
+            let error: ApiErrorPayload?
+        }
+
+        request.httpBody = try JSONEncoder().encode(Body(idfv: idfv, bundleID: bundleID))
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+
+        switch http.statusCode {
+        case 200:
+            let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+            guard let payload = envelope.data else {
+                throw AuthError.decodingError
+            }
+            return payload
+        case 401:
+            throw AuthError.invalidCredentials
+        case 429:
+            throw AuthError.tooManyRequests
+        default:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        }
+    }
+
+    static func triggerLiveActivityDebug(
+        token: String,
+        debugKey: String
+    ) async throws -> LiveActivityDebugRunData {
+        let url = URL(string: "\(baseURL)/api/v1/live_activity/debug")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(debugKey, forHTTPHeaderField: "X-Live-Activity-Debug-Key")
+
+        struct Envelope: Decodable {
+            let data: LiveActivityDebugRunData?
+            let error: ApiErrorPayload?
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+
+        switch http.statusCode {
+        case 200:
+            let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+            guard let payload = envelope.data else {
+                throw AuthError.decodingError
+            }
+            return payload
+        case 401:
+            throw AuthError.invalidCredentials
+        case 429:
+            throw AuthError.tooManyRequests
+        default:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        }
+    }
+
+    static func shouldFallbackToLiveActivityRegister(statusCode: Int, errorMessage: String?) -> Bool {
+        guard statusCode == 400 else { return false }
+        guard let errorMessage else { return false }
+        return errorMessage.localizedCaseInsensitiveContains("No matching live activity device found")
     }
 
     private static func parseCSVRows(_ text: String) -> [[String]] {

@@ -28,7 +28,40 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
-      shouldAutocreateTestPlan = "YES">
+      shouldAutocreateTestPlan = "NO">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E248C20E2F4F15E400385351"
+               BuildableName = "chihlee-student-toolboxTests.xctest"
+               BlueprintName = "chihlee-student-toolboxTests"
+               ReferencedContainer = "container:chihlee-student-toolbox.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E248C2182F4F15E400385351"
+               BuildableName = "chihlee-student-toolboxUITests.xctest"
+               BlueprintName = "chihlee-student-toolboxUITests"
+               ReferencedContainer = "container:chihlee-student-toolbox.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "E248C1FF2F4F15E200385351"
+            BuildableName = "chihlee-student-toolbox.app"
+            BlueprintName = "chihlee-student-toolbox"
+            ReferencedContainer = "container:chihlee-student-toolbox.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

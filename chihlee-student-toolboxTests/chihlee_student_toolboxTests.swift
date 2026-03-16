@@ -532,6 +532,38 @@ struct chihlee_student_toolboxTests {
         #expect(elapsed < .seconds(5))
     }
 
+    @Test func liveActivityPatchFallbackOnlyTriggersForMissingDeviceValidationError() {
+        #expect(
+            APIService.shouldFallbackToLiveActivityRegister(
+                statusCode: 400,
+                errorMessage: "No matching live activity device found for idfv"
+            )
+        )
+        #expect(
+            !APIService.shouldFallbackToLiveActivityRegister(
+                statusCode: 400,
+                errorMessage: "bundle_id is not allowed"
+            )
+        )
+        #expect(
+            !APIService.shouldFallbackToLiveActivityRegister(
+                statusCode: 500,
+                errorMessage: "No matching live activity device found for idfv"
+            )
+        )
+    }
+
+    @Test func liveActivityUnregisterDataDecodesSnakeCasePayload() throws {
+        let json = """
+        {
+          "message": "Live Activity device unregistered",
+          "removed_devices": 2
+        }
+        """
+        let payload = try JSONDecoder().decode(LiveActivityUnregisterData.self, from: Data(json.utf8))
+        #expect(payload.removedDevices == 2)
+    }
+
     private func makeDlcEvent(id: String, dateString: String) throws -> DlcCalendarEvent {
         let json = """
         {

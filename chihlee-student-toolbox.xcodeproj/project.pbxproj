@@ -242,6 +242,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
+				KnownAssetTags = (
+					test,
+				);
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
@@ -373,7 +376,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CY7Q757DQN;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ClassLiveActivityWidgetExtension-Info.plist;
+				INFOPLIST_FILE = "ClassLiveActivityWidgetExtension-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -399,7 +402,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CY7Q757DQN;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ClassLiveActivityWidgetExtension-Info.plist;
+				INFOPLIST_FILE = "ClassLiveActivityWidgetExtension-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

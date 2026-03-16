@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct NotificationSettingsView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(ThemeStore.self) private var themeStore
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("scheduleShowNonTimedItems") private var scheduleShowNonTimedItems = true
@@ -37,14 +36,5 @@ struct NotificationSettingsView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
         )
-        .onChange(of: classLiveActivityEnabled) { _, enabled in
-            Task {
-                if enabled {
-                    await ClassLiveActivityCoordinator.shared.refresh(context: modelContext, enabled: true)
-                } else {
-                    await ClassLiveActivityCoordinator.shared.endAllActivities()
-                }
-            }
-        }
     }
 }

@@ -8,63 +8,84 @@ import ActivityKit
 @MainActor
 final class ClassLiveActivityCoordinator {
     static let shared = ClassLiveActivityCoordinator()
+    static let remoteDebugKeyUserDefaultsKey = "liveActivityDebugKey"
+
+    private var remoteSyncTask: Task<Void, Never>?
+    private var remoteSyncToken: String?
 
     private init() {}
 
     func refresh(now: Date = Date(), context: ModelContext, enabled: Bool) async {
         #if canImport(ActivityKit)
-        guard #available(iOS 16.2, *), enabled, ActivityAuthorizationInfo().areActivitiesEnabled else {
+        _ = now
+        _ = context
+        await updateRemoteSync(token: UserDefaults.standard.string(forKey: "wrapperToken"), enabled: enabled)
+        #else
+        _ = now
+        _ = context
+        _ = enabled
+        #endif
+    }
+
+    func updateRemoteSync(token: String?, enabled: Bool) async {
+        #if canImport(ActivityKit)
+        guard #available(iOS 17.2, *),
+              enabled,
+              ActivityAuthorizationInfo().areActivitiesEnabled,
+              let authToken = Self.normalized(token),
+              let idfv = Self.normalized(AuthService.identifierForVendor),
+              let bundleID = Self.normalized(Bundle.main.bundleIdentifier)
+        else {
+            stopRemoteSync()
             await endAllActivities()
             return
         }
 
-        let sessions = (try? context.fetch(FetchDescriptor<ClassSession>())) ?? []
-        let entries = ClassLiveActivityEngine.timelineEntries(now: now, sessions: sessions)
-        let snapshot = ClassLiveActivityEngine.snapshot(now: now, entries: entries)
-
-        guard let snapshot else {
-            await endAllActivities()
+        if remoteSyncTask != nil, remoteSyncToken == authToken {
             return
         }
 
-        let activities = Activity<ClassLiveActivityAttributes>.activities
+        stopRemoteSync()
+        remoteSyncToken = authToken
+        remoteSyncTask = Task(priority: .background) {
+            await Self.observePushToStartTokenUpdates(
+                authToken: authToken,
+                idfv: idfv,
+                bundleID: bundleID
+            )
+        }
+        #else
+        _ = token
+        _ = enabled
+        #endif
+    }
 
-        if let current = activities.first(where: { $0.attributes.sessionID == snapshot.sessionID }) {
-            for other in activities where other.id != current.id {
-                await other.end(nil, dismissalPolicy: .immediate)
-            }
+    func stopRemoteSync() {
+        remoteSyncTask?.cancel()
+        remoteSyncTask = nil
+        remoteSyncToken = nil
+    }
 
-            let nextState = makeContentState(from: snapshot)
-            if current.content.state != nextState {
-                let content = ActivityContent(state: nextState, staleDate: snapshot.phaseEnd)
-                await current.update(content)
-            }
+    func unregisterRemoteDevice(token: String?) async {
+        guard let authToken = Self.normalized(token),
+              let idfv = Self.normalized(AuthService.identifierForVendor)
+        else {
             return
         }
-
-        for activity in activities {
-            await activity.end(nil, dismissalPolicy: .immediate)
-        }
-
-        let attributes = ClassLiveActivityAttributes(
-            sessionID: snapshot.sessionID,
-            courseName: snapshot.courseName,
-            classroom: snapshot.classroom,
-            teacher: snapshot.teacher,
-            classStart: snapshot.classStart,
-            classEnd: snapshot.classEnd
-        )
-
-        let content = ActivityContent(state: makeContentState(from: snapshot), staleDate: snapshot.phaseEnd)
 
         do {
-            _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+            _ = try await APIService.unregisterLiveActivityDevice(
+                token: authToken,
+                idfv: idfv,
+                bundleID: Self.normalized(Bundle.main.bundleIdentifier)
+            )
+        } catch is CancellationError {
+            return
         } catch {
             #if DEBUG
-            print("Failed to request class Live Activity: \(error.localizedDescription)")
+            print("Live Activity unregister failed: \(error.localizedDescription)")
             #endif
         }
-        #endif
     }
 
     func endAllActivities() async {
@@ -78,7 +99,9 @@ final class ClassLiveActivityCoordinator {
 
     func debugStartSimulation(
         phase: ClassLiveActivityAttributes.ClassPhase,
-        context: ModelContext
+        context: ModelContext,
+        countdownLeadTimeOverride: TimeInterval? = nil,
+        classDurationOverride: TimeInterval? = nil
     ) async -> String {
         #if canImport(ActivityKit)
         guard #available(iOS 16.2, *) else {
@@ -94,7 +117,8 @@ final class ClassLiveActivityCoordinator {
         }
 
         let now = Date()
-        let duration = classDuration(for: primary)
+        let countdownLeadTime = max(5, countdownLeadTimeOverride ?? 15 * 60)
+        let duration = max(5, classDurationOverride ?? classDuration(for: primary))
         let classStart: Date
         let classEnd: Date
         let phaseStart: Date
@@ -102,7 +126,7 @@ final class ClassLiveActivityCoordinator {
 
         switch phase {
         case .countdown:
-            classStart = now.addingTimeInterval(15 * 60)
+            classStart = now.addingTimeInterval(countdownLeadTime)
             classEnd = classStart.addingTimeInterval(duration)
             phaseStart = now
             phaseEnd = classStart
@@ -158,20 +182,79 @@ final class ClassLiveActivityCoordinator {
         #endif
     }
 
-    private func makeContentState(from snapshot: ClassLiveActivitySnapshot) -> ClassLiveActivityAttributes.ContentState {
-        ClassLiveActivityAttributes.ContentState(
-            phase: snapshot.phase,
-            courseName: snapshot.courseName,
-            classroom: snapshot.classroom,
-            teacher: snapshot.teacher,
-            classStart: snapshot.classStart,
-            classEnd: snapshot.classEnd,
-            phaseStart: snapshot.phaseStart,
-            phaseEnd: snapshot.phaseEnd,
-            nextCourseName: snapshot.nextCourseName,
-            nextStart: snapshot.nextStart,
-            nextClassroom: snapshot.nextClassroom
-        )
+    func debugStartRemoteSimulation(
+        phase: ClassLiveActivityAttributes.ClassPhase,
+        context: ModelContext,
+        token: String?
+    ) async -> String {
+        _ = phase
+        _ = context
+
+        guard let authToken = Self.normalized(token) else {
+            return "Missing auth token"
+        }
+        guard let debugKey = Self.normalized(
+            UserDefaults.standard.string(forKey: Self.remoteDebugKeyUserDefaultsKey)
+        ) else {
+            return "Missing Live Activity debug key"
+        }
+
+        do {
+            let run = try await APIService.triggerLiveActivityDebug(token: authToken, debugKey: debugKey)
+            return "Triggered remote debug run \(run.runID) (\(run.targetDevices) devices)"
+        } catch let error as AuthError {
+            return error.localizedDescription
+        } catch {
+            return "Failed to trigger remote debug: \(error.localizedDescription)"
+        }
+    }
+
+    @available(iOS 17.2, *)
+    nonisolated private static func observePushToStartTokenUpdates(
+        authToken: String,
+        idfv: String,
+        bundleID: String
+    ) async {
+        var lastSyncedToken: String?
+
+        for await tokenData in Activity<ClassLiveActivityAttributes>.pushToStartTokenUpdates {
+            if Task.isCancelled {
+                return
+            }
+
+            let pushToStartToken = tokenData.map { String(format: "%02x", $0) }.joined()
+            guard !pushToStartToken.isEmpty else { continue }
+            guard pushToStartToken != lastSyncedToken else { continue }
+
+            do {
+                let patchOutcome = try await APIService.patchLiveActivityToken(
+                    token: authToken,
+                    idfv: idfv,
+                    pushToStartToken: pushToStartToken
+                )
+                if case .needsRegisterFallback = patchOutcome {
+                    try await APIService.registerLiveActivityDevice(
+                        token: authToken,
+                        idfv: idfv,
+                        bundleID: bundleID,
+                        pushToStartToken: pushToStartToken
+                    )
+                }
+                lastSyncedToken = pushToStartToken
+            } catch is CancellationError {
+                return
+            } catch {
+                #if DEBUG
+                print("Live Activity token sync failed: \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
+    nonisolated private static func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func classDuration(for session: ClassSession) -> TimeInterval {
@@ -186,5 +269,9 @@ final class ClassLiveActivityCoordinator {
     private func normalizedCourseName(from session: ClassSession?) -> String {
         let raw = (session?.course?.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return raw.isEmpty ? "未命名課程" : raw
+    }
+
+    deinit {
+        remoteSyncTask?.cancel()
     }
 }

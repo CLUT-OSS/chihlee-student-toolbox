@@ -10,6 +10,8 @@ struct AuthTokenDebugView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(DigitalPassQRImageFormat.userDefaultsKey)
     private var digitalPassQRImageFormatRawValue = DigitalPassQRImageFormat.defaultFormat.rawValue
+    @AppStorage(ClassLiveActivityCoordinator.remoteDebugKeyUserDefaultsKey)
+    private var liveActivityDebugKey = ""
     @State private var showCopiedAlert = false
     @State private var cfRay: String?
     @State private var traceFields: [(key: String, value: String)] = []
@@ -224,6 +226,15 @@ struct AuthTokenDebugView: View {
                 Text("Remote Live Activity Debug")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                TextField("X-Live-Activity-Debug-Key", text: $liveActivityDebugKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 HStack(spacing: 8) {
                     Button("Remote 30s Countdown") {

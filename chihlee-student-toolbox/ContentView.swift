@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("classLiveActivityEnabled") private var classLiveActivityEnabled = true
 
@@ -32,28 +31,39 @@ struct ContentView: View {
         }
         .task {
             await auth.validateSession()
-            await refreshClassLiveActivity()
+            await syncRemoteLiveActivity()
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
             Task {
                 await auth.validateSession()
-                await refreshClassLiveActivity()
+                await syncRemoteLiveActivity()
             }
         }
         .onChange(of: classLiveActivityEnabled) { _, enabled in
             Task {
                 if enabled {
-                    await refreshClassLiveActivity()
+                    await syncRemoteLiveActivity()
                 } else {
+                    ClassLiveActivityCoordinator.shared.stopRemoteSync()
                     await ClassLiveActivityCoordinator.shared.endAllActivities()
+                    await ClassLiveActivityCoordinator.shared.unregisterRemoteDevice(token: auth.wrapperToken)
                 }
             }
         }
         .onChange(of: auth.isAuthenticated) { _, isAuthenticated in
-            guard !isAuthenticated else { return }
             Task {
-                await ClassLiveActivityCoordinator.shared.endAllActivities()
+                if isAuthenticated {
+                    await syncRemoteLiveActivity()
+                } else {
+                    ClassLiveActivityCoordinator.shared.stopRemoteSync()
+                    await ClassLiveActivityCoordinator.shared.endAllActivities()
+                }
+            }
+        }
+        .onChange(of: auth.wrapperToken) { _, _ in
+            Task {
+                await syncRemoteLiveActivity()
             }
         }
     }
@@ -102,9 +112,9 @@ struct ContentView: View {
     }
 
     @MainActor
-    private func refreshClassLiveActivity() async {
-        await ClassLiveActivityCoordinator.shared.refresh(
-            context: modelContext,
+    private func syncRemoteLiveActivity() async {
+        await ClassLiveActivityCoordinator.shared.updateRemoteSync(
+            token: auth.wrapperToken,
             enabled: classLiveActivityEnabled && auth.isAuthenticated
         )
     }

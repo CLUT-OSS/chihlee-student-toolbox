@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum AuthError: LocalizedError {
     case invalidCredentials
@@ -92,6 +95,14 @@ struct SessionStatusData: Decodable {
 struct AuthService {
     static let baseURL = "https://chihlee-api.c-h.tw"
 
+    static var identifierForVendor: String? {
+        #if canImport(UIKit)
+        return UIDevice.current.identifierForVendor?.uuidString
+        #else
+        return nil
+        #endif
+    }
+
     static func login(muid: String, mpassword: String) async throws -> LoginResponseData {
         let url = URL(string: "\(baseURL)/api/v1/auth/login")!
         var request = URLRequest(url: url)
@@ -117,11 +128,16 @@ struct AuthService {
         }
     }
 
-    static func logout(token: String) async throws {
+    static func logout(token: String, idfv: String? = nil) async throws {
         let url = URL(string: "\(baseURL)/api/v1/auth/logout")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let normalizedIDFV = idfv?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let normalizedIDFV, !normalizedIDFV.isEmpty {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(LogoutRequest(idfv: normalizedIDFV))
+        }
 
         let (_, response) = try await URLSession.shared.data(for: request)
         let http = response as! HTTPURLResponse
@@ -152,3 +168,7 @@ struct AuthService {
 }
 
 private struct EmptyData: Decodable {}
+
+private struct LogoutRequest: Encodable {
+    let idfv: String
+}

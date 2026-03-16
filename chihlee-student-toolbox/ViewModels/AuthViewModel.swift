@@ -76,8 +76,16 @@ final class AuthViewModel {
         isLoading = false
     }
 
-    func logout() async {
+    func logout(includeLiveActivityUnregister: Bool = true) async {
         if let token = wrapperToken {
+            if includeLiveActivityUnregister,
+               let idfv = Self.normalized(AuthService.identifierForVendor) {
+                _ = try? await APIService.unregisterLiveActivityDevice(
+                    token: token,
+                    idfv: idfv,
+                    bundleID: Self.normalized(Bundle.main.bundleIdentifier)
+                )
+            }
             try? await AuthService.logout(token: token)
         }
         clearAuthState(clearCredentials: true)
@@ -166,6 +174,12 @@ final class AuthViewModel {
             return parsed
         }
         return iso8601.date(from: value)
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     @discardableResult
