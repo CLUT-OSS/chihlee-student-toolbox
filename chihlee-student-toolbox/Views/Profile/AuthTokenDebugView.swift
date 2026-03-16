@@ -8,6 +8,8 @@ struct AuthTokenDebugView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(DigitalPassQRImageFormat.userDefaultsKey)
+    private var digitalPassQRImageFormatRawValue = DigitalPassQRImageFormat.defaultFormat.rawValue
     @State private var showCopiedAlert = false
     @State private var cfRay: String?
     @State private var traceFields: [(key: String, value: String)] = []
@@ -44,6 +46,8 @@ struct AuthTokenDebugView: View {
                     metricsPanel
 
                     proxyMetricsPanel
+
+                    imageFormatDebugPanel
 
                     liveActivityDebugPanel
 
@@ -149,34 +153,91 @@ struct AuthTokenDebugView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    private var imageFormatDebugPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Digital Pass QR")
+                .font(.headline)
+
+            Picker("Image Format", selection: digitalPassQRImageFormatBinding) {
+                ForEach(DigitalPassQRImageFormat.allCases) { format in
+                    Text(format.displayName).tag(format)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("Current format: \(selectedDigitalPassQRImageFormat.displayName)")
+                .foregroundStyle(.secondary)
+        }
+        .font(.system(.footnote, design: .monospaced))
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
     private var liveActivityDebugPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Live Activity Debug")
                 .font(.headline)
 
-            HStack(spacing: 8) {
-                Button("Before Class") {
-                    Task { await triggerLiveActivityDebug(.countdown) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isTriggeringLiveActivity)
-
-                Button("In Class") {
-                    Task { await triggerLiveActivityDebug(.inClass) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isTriggeringLiveActivity)
-
-                Button("End") {
-                    Task {
-                        isTriggeringLiveActivity = true
-                        await ClassLiveActivityCoordinator.shared.endAllActivities()
-                        liveActivityDebugMessage = "Ended all class Live Activities"
-                        isTriggeringLiveActivity = false
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button("Before Class") {
+                        Task { await triggerLiveActivityDebug(.countdown) }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isTriggeringLiveActivity)
+
+                    Button("In Class") {
+                        Task { await triggerLiveActivityDebug(.inClass) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isTriggeringLiveActivity)
                 }
-                .buttonStyle(.bordered)
-                .disabled(isTriggeringLiveActivity)
+
+                HStack(spacing: 8) {
+                    Button("30s Countdown") {
+                        Task { await triggerLiveActivityDebug(.countdown, countdownLeadTime: 30, classDuration: 30) }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isTriggeringLiveActivity)
+
+                    Button("30s In Class") {
+                        Task { await triggerLiveActivityDebug(.inClass, classDuration: 30) }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isTriggeringLiveActivity)
+
+                    Button("End") {
+                        Task {
+                            isTriggeringLiveActivity = true
+                            await ClassLiveActivityCoordinator.shared.endAllActivities()
+                            liveActivityDebugMessage = "Ended all class Live Activities"
+                            isTriggeringLiveActivity = false
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isTriggeringLiveActivity)
+                }
+
+                Divider()
+
+                Text("Remote Live Activity Debug")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button("Remote 30s Countdown") {
+                        Task { await triggerRemoteLiveActivityDebug(.countdown) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isTriggeringLiveActivity)
+
+                    Button("Remote 30s In Class") {
+                        Task { await triggerRemoteLiveActivityDebug(.inClass) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isTriggeringLiveActivity)
+                }
             }
 
             if let liveActivityDebugMessage {
@@ -220,10 +281,42 @@ struct AuthTokenDebugView: View {
         showCopiedAlert = true
     }
 
+    private var selectedDigitalPassQRImageFormat: DigitalPassQRImageFormat {
+        DigitalPassQRImageFormat.fromUserDefaults(digitalPassQRImageFormatRawValue)
+    }
+
+    private var digitalPassQRImageFormatBinding: Binding<DigitalPassQRImageFormat> {
+        Binding(
+            get: { selectedDigitalPassQRImageFormat },
+            set: { digitalPassQRImageFormatRawValue = $0.rawValue }
+        )
+    }
+
     @MainActor
-    private func triggerLiveActivityDebug(_ phase: ClassLiveActivityAttributes.ClassPhase) async {
+    private func triggerLiveActivityDebug(
+        _ phase: ClassLiveActivityAttributes.ClassPhase,
+        countdownLeadTime: TimeInterval? = nil,
+        classDuration: TimeInterval? = nil
+    ) async {
         isTriggeringLiveActivity = true
-        let result = await ClassLiveActivityCoordinator.shared.debugStartSimulation(phase: phase, context: modelContext)
+        let result = await ClassLiveActivityCoordinator.shared.debugStartSimulation(
+            phase: phase,
+            context: modelContext,
+            countdownLeadTimeOverride: countdownLeadTime,
+            classDurationOverride: classDuration
+        )
+        liveActivityDebugMessage = result
+        isTriggeringLiveActivity = false
+    }
+
+    @MainActor
+    private func triggerRemoteLiveActivityDebug(_ phase: ClassLiveActivityAttributes.ClassPhase) async {
+        isTriggeringLiveActivity = true
+        let result = await ClassLiveActivityCoordinator.shared.debugStartRemoteSimulation(
+            phase: phase,
+            context: modelContext,
+            token: token
+        )
         liveActivityDebugMessage = result
         isTriggeringLiveActivity = false
     }

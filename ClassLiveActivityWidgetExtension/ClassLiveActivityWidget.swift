@@ -229,7 +229,7 @@ private struct FixedWidthTimerText: View {
             if dateRange.upperBound > .now {
                 Text(timerInterval: dateRange, countsDown: true, showsHours: false)
             } else {
-                Text("0:00")
+                Text("00:00")
             }
         }
         .font(font.monospacedDigit())
@@ -457,8 +457,13 @@ private struct ClassLiveActivityLockScreenView: View {
                     Text(statusPrefix)
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(secondaryTextColor)
-                    Text(context.state.phaseEnd, style: .timer)
-                        .font(.system(.subheadline, design: .rounded).monospacedDigit())
+                    FixedWidthTimerText(
+                        dateRange: context.state.phaseStart...context.state.phaseEnd,
+                        font: .system(.subheadline, design: .rounded).weight(.semibold),
+                        uiFont: UIFont.monospacedDigitSystemFont(ofSize: 15, weight: .semibold),
+                        minimumScaleFactor: 0.85,
+                        alignment: .trailing
+                    )
                         .foregroundStyle(primaryTextColor)
                 }
                 .lineLimit(1)

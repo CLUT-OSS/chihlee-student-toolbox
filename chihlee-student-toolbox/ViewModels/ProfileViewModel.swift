@@ -2,6 +2,25 @@ import Foundation
 import SwiftData
 import Observation
 
+enum DigitalPassQRImageFormat: String, CaseIterable, Identifiable {
+    case jpg
+    case png
+    case avif
+
+    static let userDefaultsKey = "digitalPassQRImageFormat"
+    static let defaultFormat: Self = .jpg
+
+    var id: String { rawValue }
+    var displayName: String { rawValue.uppercased() }
+
+    static func fromUserDefaults(_ value: String?) -> Self {
+        let normalized = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return normalized.flatMap(Self.init(rawValue:)) ?? defaultFormat
+    }
+}
+
 @MainActor
 @Observable
 final class ProfileViewModel {
@@ -18,6 +37,12 @@ final class ProfileViewModel {
     var isLoadingQR = false
     var photoError: String?
     var qrError: String?
+
+    private var qrImageFormat: DigitalPassQRImageFormat {
+        DigitalPassQRImageFormat.fromUserDefaults(
+            UserDefaults.standard.string(forKey: DigitalPassQRImageFormat.userDefaultsKey)
+        )
+    }
 
     func loadOrCreateStudent(context: ModelContext) {
         let students = (try? context.fetch(FetchDescriptor<Student>())) ?? []
@@ -111,9 +136,14 @@ final class ProfileViewModel {
         qrError = nil
         isLoadingPhoto = true
         isLoadingQR = !studentID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let format = qrImageFormat
 
         async let photoResultTask = fetchDigitalPassPhotoResult(token: token)
-        async let qrResultTask = fetchDigitalPassQRResult(token: token, studentID: studentID)
+        async let qrResultTask = fetchDigitalPassQRResult(
+            token: token,
+            studentID: studentID,
+            format: format
+        )
         let photoResult = await photoResultTask
         let qrResult = await qrResultTask
 
@@ -137,6 +167,30 @@ final class ProfileViewModel {
         }
     }
 
+    func refetchDigitalPassQR(token: String?) async {
+        guard let token, !token.isEmpty else { return }
+        let studentID = (digitalPass?.studentID ?? student?.studentID ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !studentID.isEmpty else { return }
+
+        qrError = nil
+        isLoadingQR = true
+        let result = await fetchDigitalPassQRResult(
+            token: token,
+            studentID: studentID,
+            format: qrImageFormat
+        )
+        isLoadingQR = false
+
+        switch result {
+        case .success(let data):
+            qrData = data
+        case .failure(let error):
+            qrData = nil
+            qrError = error.localizedDescription
+        }
+    }
+
     private func fetchDigitalPassPhotoResult(token: String) async -> Result<Data, Error> {
         do {
             return .success(try await APIService.fetchIlifeDigitalPassPhoto(token: token))
@@ -145,7 +199,11 @@ final class ProfileViewModel {
         }
     }
 
-    private func fetchDigitalPassQRResult(token: String, studentID: String) async -> Result<Data, Error> {
+    private func fetchDigitalPassQRResult(
+        token: String,
+        studentID: String,
+        format: DigitalPassQRImageFormat
+    ) async -> Result<Data, Error> {
         let normalizedStudentID = studentID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedStudentID.isEmpty else {
             return .failure(AuthError.serverError("缺少學生證 QR 內容"))
@@ -154,7 +212,7 @@ final class ProfileViewModel {
             return .success(try await APIService.fetchIlifeDigitalPassQR(
                 token: token,
                 q: normalizedStudentID,
-                format: "jpg"
+                format: format.rawValue
             ))
         } catch {
             return .failure(error)

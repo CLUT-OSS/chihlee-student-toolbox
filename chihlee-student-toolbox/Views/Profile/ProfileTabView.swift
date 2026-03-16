@@ -5,6 +5,8 @@ import UIKit
 struct ProfileTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthViewModel.self) private var auth
+    @AppStorage(DigitalPassQRImageFormat.userDefaultsKey)
+    private var digitalPassQRImageFormatRawValue = DigitalPassQRImageFormat.defaultFormat.rawValue
     @State private var viewModel = ProfileViewModel()
     @State private var showLogoutConfirm = false
 
@@ -30,6 +32,11 @@ struct ProfileTabView: View {
             }
             .task(id: auth.wrapperToken) {
                 await viewModel.fetchAndSync(token: auth.wrapperToken, context: modelContext)
+            }
+            .onChange(of: digitalPassQRImageFormatRawValue) { _, _ in
+                Task {
+                    await viewModel.refetchDigitalPassQR(token: auth.wrapperToken)
+                }
             }
             .confirmationDialog("確定要登出嗎？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("登出", role: .destructive) {
