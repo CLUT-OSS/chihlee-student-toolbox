@@ -43,10 +43,10 @@ struct ContentView: View {
         .onChange(of: classLiveActivityEnabled) { _, enabled in
             Task {
                 if enabled {
-                    let didRegister = await ClassLiveActivityCoordinator.shared.registerRemoteDeviceIfPossible(
+                    await syncRemoteLiveActivity(forceRegisterOnStart: true)
+                    _ = await ClassLiveActivityCoordinator.shared.registerRemoteDeviceIfPossible(
                         token: auth.wrapperToken
                     )
-                    await syncRemoteLiveActivity(forceRegisterOnStart: !didRegister)
                 } else {
                     ClassLiveActivityCoordinator.shared.stopRemoteSync()
                     await ClassLiveActivityCoordinator.shared.endAllActivities()

@@ -1442,6 +1442,7 @@ struct APIService {
         let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
+        request.timeoutInterval = 15
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -1463,7 +1464,7 @@ struct APIService {
         let http = response as! HTTPURLResponse
 
         switch http.statusCode {
-        case 200:
+        case 200 ..< 300:
             return .patched
         case 400:
             let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
@@ -1490,6 +1491,7 @@ struct APIService {
         let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 15
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -1515,7 +1517,7 @@ struct APIService {
         let http = response as! HTTPURLResponse
 
         switch http.statusCode {
-        case 200:
+        case 200 ..< 300:
             return
         case 401:
             throw AuthError.invalidCredentials

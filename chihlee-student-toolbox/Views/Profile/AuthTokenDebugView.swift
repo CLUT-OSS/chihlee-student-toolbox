@@ -2,6 +2,11 @@ import SwiftUI
 import SwiftData
 import UIKit
 
+private enum BuildInfo {
+    // Updated by development workflow when needed.
+    static let gitCommit = "00a6e87"
+}
+
 struct AuthTokenDebugView: View {
     let token: String?
     let metrics: AuthDebugMetrics
@@ -253,6 +258,12 @@ struct AuthTokenDebugView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isTriggeringLiveActivity)
+
+                    Button("Force Register") {
+                        Task { await triggerForceRegister() }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isTriggeringLiveActivity)
                 }
 
                 Divider()
@@ -271,6 +282,12 @@ struct AuthTokenDebugView: View {
                     title: "Last Synced Token",
                     value: normalizedDebugToken(lastSyncedPushToStartToken),
                     copiedTitle: "Last synced token copied"
+                )
+
+                liveActivityTokenRow(
+                    title: "Git Commit",
+                    value: BuildInfo.gitCommit,
+                    copiedTitle: "Git commit copied"
                 )
             }
 
@@ -388,6 +405,15 @@ struct AuthTokenDebugView: View {
             context: modelContext,
             token: token
         )
+        liveActivityDebugMessage = result
+        isTriggeringLiveActivity = false
+    }
+
+    @MainActor
+    private func triggerForceRegister() async {
+        isTriggeringLiveActivity = true
+        liveActivityDebugMessage = "Force register in progress..."
+        let result = await ClassLiveActivityCoordinator.shared.forceRegisterRemoteDevice(token: token)
         liveActivityDebugMessage = result
         isTriggeringLiveActivity = false
     }

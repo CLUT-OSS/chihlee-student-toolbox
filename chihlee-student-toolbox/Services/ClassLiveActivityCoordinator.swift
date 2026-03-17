@@ -46,7 +46,9 @@ final class ClassLiveActivityCoordinator {
               let bundleID = Self.normalized(Bundle.main.bundleIdentifier)
         else {
             stopRemoteSync()
-            await endAllActivities()
+            Task {
+                await self.endAllActivities()
+            }
             return
         }
 
@@ -74,17 +76,13 @@ final class ClassLiveActivityCoordinator {
     func registerRemoteDeviceIfPossible(token: String?) async -> Bool {
         #if canImport(ActivityKit)
         guard #available(iOS 17.2, *),
-              ActivityAuthorizationInfo().areActivitiesEnabled,
               let authToken = Self.normalized(token),
               let idfv = Self.normalized(AuthService.identifierForVendor),
               let bundleID = Self.normalized(Bundle.main.bundleIdentifier),
-              let tokenData = Activity<ClassLiveActivityAttributes>.pushToStartToken
+              let pushToStartToken = Self.currentOrCachedPushToStartToken()
         else {
             return false
         }
-
-        let pushToStartToken = tokenData.map { String(format: "%02x", $0) }.joined()
-        guard !pushToStartToken.isEmpty else { return false }
 
         UserDefaults.standard.set(
             pushToStartToken,
@@ -92,8 +90,8 @@ final class ClassLiveActivityCoordinator {
         )
 
         do {
-            try await APIService.registerLiveActivityDevice(
-                token: authToken,
+            try await Self.registerOrPatchLiveActivityDevice(
+                authToken: authToken,
                 idfv: idfv,
                 bundleID: bundleID,
                 pushToStartToken: pushToStartToken
@@ -114,6 +112,55 @@ final class ClassLiveActivityCoordinator {
         #else
         _ = token
         return false
+        #endif
+    }
+
+    func forceRegisterRemoteDevice(token: String?) async -> String {
+        #if canImport(ActivityKit)
+        guard #available(iOS 17.2, *) else {
+            return "Live Activity remote register requires iOS 17.2+"
+        }
+        guard let authToken = Self.normalized(token) else {
+            return "Missing auth token"
+        }
+        guard let idfv = Self.normalized(AuthService.identifierForVendor) else {
+            return "Missing IDFV"
+        }
+        guard let bundleID = Self.normalized(Bundle.main.bundleIdentifier) else {
+            return "Missing bundle ID"
+        }
+        Task {
+            await self.updateRemoteSync(token: token, enabled: true, forceRegisterOnStart: true)
+        }
+        guard let pushToStartToken = Self.currentOrCachedPushToStartToken() else {
+            return "No push-to-start token available yet"
+        }
+
+        UserDefaults.standard.set(
+            pushToStartToken,
+            forKey: liveActivityCurrentPushToStartTokenUserDefaultsKey
+        )
+
+        do {
+            try await Self.registerOrPatchLiveActivityDevice(
+                authToken: authToken,
+                idfv: idfv,
+                bundleID: bundleID,
+                pushToStartToken: pushToStartToken
+            )
+            UserDefaults.standard.set(
+                pushToStartToken,
+                forKey: liveActivityLastSyncedPushToStartTokenUserDefaultsKey
+            )
+            return "Force register sent"
+        } catch let error as AuthError {
+            return error.localizedDescription
+        } catch {
+            return "Force register failed: \(error.localizedDescription)"
+        }
+        #else
+        _ = token
+        return "ActivityKit is unavailable on this build"
         #endif
     }
 
@@ -291,8 +338,8 @@ final class ClassLiveActivityCoordinator {
 
             do {
                 if shouldForceRegister {
-                    try await APIService.registerLiveActivityDevice(
-                        token: authToken,
+                    try await Self.registerOrPatchLiveActivityDevice(
+                        authToken: authToken,
                         idfv: idfv,
                         bundleID: bundleID,
                         pushToStartToken: pushToStartToken
@@ -332,6 +379,55 @@ final class ClassLiveActivityCoordinator {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    @available(iOS 17.2, *)
+    nonisolated private static func currentOrCachedPushToStartToken() -> String? {
+        if let tokenData = Activity<ClassLiveActivityAttributes>.pushToStartToken {
+            let token = tokenData.map { String(format: "%02x", $0) }.joined()
+            if !token.isEmpty {
+                return token
+            }
+        }
+
+        if let cachedCurrent = normalized(
+            UserDefaults.standard.string(forKey: liveActivityCurrentPushToStartTokenUserDefaultsKey)
+        ) {
+            return cachedCurrent
+        }
+        return normalized(
+            UserDefaults.standard.string(forKey: liveActivityLastSyncedPushToStartTokenUserDefaultsKey)
+        )
+    }
+
+    @available(iOS 17.2, *)
+    nonisolated private static func registerOrPatchLiveActivityDevice(
+        authToken: String,
+        idfv: String,
+        bundleID: String,
+        pushToStartToken: String
+    ) async throws {
+        do {
+            try await APIService.registerLiveActivityDevice(
+                token: authToken,
+                idfv: idfv,
+                bundleID: bundleID,
+                pushToStartToken: pushToStartToken
+            )
+            return
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let patchOutcome = try await APIService.patchLiveActivityToken(
+                token: authToken,
+                idfv: idfv,
+                pushToStartToken: pushToStartToken
+            )
+            if case .patched = patchOutcome {
+                return
+            }
+            throw error
+        }
     }
 
     private func classDuration(for session: ClassSession) -> TimeInterval {
