@@ -43,7 +43,10 @@ struct ContentView: View {
         .onChange(of: classLiveActivityEnabled) { _, enabled in
             Task {
                 if enabled {
-                    await syncRemoteLiveActivity()
+                    let didRegister = await ClassLiveActivityCoordinator.shared.registerRemoteDeviceIfPossible(
+                        token: auth.wrapperToken
+                    )
+                    await syncRemoteLiveActivity(forceRegisterOnStart: !didRegister)
                 } else {
                     ClassLiveActivityCoordinator.shared.stopRemoteSync()
                     await ClassLiveActivityCoordinator.shared.endAllActivities()
@@ -112,10 +115,11 @@ struct ContentView: View {
     }
 
     @MainActor
-    private func syncRemoteLiveActivity() async {
+    private func syncRemoteLiveActivity(forceRegisterOnStart: Bool = false) async {
         await ClassLiveActivityCoordinator.shared.updateRemoteSync(
             token: auth.wrapperToken,
-            enabled: classLiveActivityEnabled && auth.isAuthenticated
+            enabled: classLiveActivityEnabled && auth.isAuthenticated,
+            forceRegisterOnStart: forceRegisterOnStart
         )
     }
 }

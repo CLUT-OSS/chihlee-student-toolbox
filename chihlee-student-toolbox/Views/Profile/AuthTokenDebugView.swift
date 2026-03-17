@@ -12,7 +12,12 @@ struct AuthTokenDebugView: View {
     private var digitalPassQRImageFormatRawValue = DigitalPassQRImageFormat.defaultFormat.rawValue
     @AppStorage(ClassLiveActivityCoordinator.remoteDebugKeyUserDefaultsKey)
     private var liveActivityDebugKey = ""
+    @AppStorage(ClassLiveActivityCoordinator.currentPushToStartTokenUserDefaultsKey)
+    private var currentPushToStartToken = ""
+    @AppStorage(ClassLiveActivityCoordinator.lastSyncedPushToStartTokenUserDefaultsKey)
+    private var lastSyncedPushToStartToken = ""
     @State private var showCopiedAlert = false
+    @State private var copiedAlertTitle = "Copied"
     @State private var cfRay: String?
     @State private var traceFields: [(key: String, value: String)] = []
     @State private var isLoadingTrace = false
@@ -70,7 +75,7 @@ struct AuthTokenDebugView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .alert("Token copied", isPresented: $showCopiedAlert) {
+            .alert(copiedAlertTitle, isPresented: $showCopiedAlert) {
                 Button("OK", role: .cancel) {}
             }
             .task { await fetchTrace() }
@@ -249,6 +254,24 @@ struct AuthTokenDebugView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(isTriggeringLiveActivity)
                 }
+
+                Divider()
+
+                Text("Remote Token Sync State")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                liveActivityTokenRow(
+                    title: "Current pushToStartTokenUpdates",
+                    value: normalizedDebugToken(currentPushToStartToken),
+                    copiedTitle: "Current token copied"
+                )
+
+                liveActivityTokenRow(
+                    title: "Last Synced Token",
+                    value: normalizedDebugToken(lastSyncedPushToStartToken),
+                    copiedTitle: "Last synced token copied"
+                )
             }
 
             if let liveActivityDebugMessage {
@@ -260,6 +283,38 @@ struct AuthTokenDebugView: View {
         .padding(12)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private func liveActivityTokenRow(title: String, value: String, copiedTitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    copyToPasteboard(value, copiedTitle: copiedTitle)
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(value == "-")
+            }
+
+            Text(value)
+                .font(.system(.caption2, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(Color(.tertiarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private func normalizedDebugToken(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "-" : trimmed
     }
 
     private func fetchTrace() async {
@@ -288,7 +343,12 @@ struct AuthTokenDebugView: View {
 
     private func copyToken() {
         guard let token, !token.isEmpty else { return }
-        UIPasteboard.general.string = token
+        copyToPasteboard(token, copiedTitle: "Auth token copied")
+    }
+
+    private func copyToPasteboard(_ value: String, copiedTitle: String) {
+        UIPasteboard.general.string = value
+        copiedAlertTitle = copiedTitle
         showCopiedAlert = true
     }
 

@@ -5,10 +5,15 @@ import SwiftData
 import ActivityKit
 #endif
 
+private let liveActivityCurrentPushToStartTokenUserDefaultsKey = "liveActivityCurrentPushToStartToken"
+private let liveActivityLastSyncedPushToStartTokenUserDefaultsKey = "liveActivityLastSyncedPushToStartToken"
+
 @MainActor
 final class ClassLiveActivityCoordinator {
     static let shared = ClassLiveActivityCoordinator()
     static let remoteDebugKeyUserDefaultsKey = "liveActivityDebugKey"
+    static let currentPushToStartTokenUserDefaultsKey = liveActivityCurrentPushToStartTokenUserDefaultsKey
+    static let lastSyncedPushToStartTokenUserDefaultsKey = liveActivityLastSyncedPushToStartTokenUserDefaultsKey
 
     private var remoteSyncTask: Task<Void, Never>?
     private var remoteSyncToken: String?
@@ -27,7 +32,11 @@ final class ClassLiveActivityCoordinator {
         #endif
     }
 
-    func updateRemoteSync(token: String?, enabled: Bool) async {
+    func updateRemoteSync(
+        token: String?,
+        enabled: Bool,
+        forceRegisterOnStart: Bool = false
+    ) async {
         #if canImport(ActivityKit)
         guard #available(iOS 17.2, *),
               enabled,
@@ -51,12 +60,60 @@ final class ClassLiveActivityCoordinator {
             await Self.observePushToStartTokenUpdates(
                 authToken: authToken,
                 idfv: idfv,
-                bundleID: bundleID
+                bundleID: bundleID,
+                forceRegisterFirstToken: forceRegisterOnStart
             )
         }
         #else
         _ = token
         _ = enabled
+        _ = forceRegisterOnStart
+        #endif
+    }
+
+    func registerRemoteDeviceIfPossible(token: String?) async -> Bool {
+        #if canImport(ActivityKit)
+        guard #available(iOS 17.2, *),
+              ActivityAuthorizationInfo().areActivitiesEnabled,
+              let authToken = Self.normalized(token),
+              let idfv = Self.normalized(AuthService.identifierForVendor),
+              let bundleID = Self.normalized(Bundle.main.bundleIdentifier),
+              let tokenData = Activity<ClassLiveActivityAttributes>.pushToStartToken
+        else {
+            return false
+        }
+
+        let pushToStartToken = tokenData.map { String(format: "%02x", $0) }.joined()
+        guard !pushToStartToken.isEmpty else { return false }
+
+        UserDefaults.standard.set(
+            pushToStartToken,
+            forKey: liveActivityCurrentPushToStartTokenUserDefaultsKey
+        )
+
+        do {
+            try await APIService.registerLiveActivityDevice(
+                token: authToken,
+                idfv: idfv,
+                bundleID: bundleID,
+                pushToStartToken: pushToStartToken
+            )
+            UserDefaults.standard.set(
+                pushToStartToken,
+                forKey: liveActivityLastSyncedPushToStartTokenUserDefaultsKey
+            )
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            #if DEBUG
+            print("Live Activity register failed: \(error.localizedDescription)")
+            #endif
+            return false
+        }
+        #else
+        _ = token
+        return false
         #endif
     }
 
@@ -213,9 +270,11 @@ final class ClassLiveActivityCoordinator {
     nonisolated private static func observePushToStartTokenUpdates(
         authToken: String,
         idfv: String,
-        bundleID: String
+        bundleID: String,
+        forceRegisterFirstToken: Bool
     ) async {
         var lastSyncedToken: String?
+        var shouldForceRegister = forceRegisterFirstToken
 
         for await tokenData in Activity<ClassLiveActivityAttributes>.pushToStartTokenUpdates {
             if Task.isCancelled {
@@ -224,23 +283,41 @@ final class ClassLiveActivityCoordinator {
 
             let pushToStartToken = tokenData.map { String(format: "%02x", $0) }.joined()
             guard !pushToStartToken.isEmpty else { continue }
+            UserDefaults.standard.set(
+                pushToStartToken,
+                forKey: liveActivityCurrentPushToStartTokenUserDefaultsKey
+            )
             guard pushToStartToken != lastSyncedToken else { continue }
 
             do {
-                let patchOutcome = try await APIService.patchLiveActivityToken(
-                    token: authToken,
-                    idfv: idfv,
-                    pushToStartToken: pushToStartToken
-                )
-                if case .needsRegisterFallback = patchOutcome {
+                if shouldForceRegister {
                     try await APIService.registerLiveActivityDevice(
                         token: authToken,
                         idfv: idfv,
                         bundleID: bundleID,
                         pushToStartToken: pushToStartToken
                     )
+                    shouldForceRegister = false
+                } else {
+                    let patchOutcome = try await APIService.patchLiveActivityToken(
+                        token: authToken,
+                        idfv: idfv,
+                        pushToStartToken: pushToStartToken
+                    )
+                    if case .needsRegisterFallback = patchOutcome {
+                        try await APIService.registerLiveActivityDevice(
+                            token: authToken,
+                            idfv: idfv,
+                            bundleID: bundleID,
+                            pushToStartToken: pushToStartToken
+                        )
+                    }
                 }
                 lastSyncedToken = pushToStartToken
+                UserDefaults.standard.set(
+                    pushToStartToken,
+                    forKey: liveActivityLastSyncedPushToStartTokenUserDefaultsKey
+                )
             } catch is CancellationError {
                 return
             } catch {
