@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("classLiveActivityEnabled") private var classLiveActivityEnabled = true
 
     private enum MainTab: Int, Hashable {
@@ -116,10 +117,16 @@ struct ContentView: View {
 
     @MainActor
     private func syncRemoteLiveActivity(forceRegisterOnStart: Bool = false) async {
+        let isLiveActivityEnabled = classLiveActivityEnabled && auth.isAuthenticated
         await ClassLiveActivityCoordinator.shared.updateRemoteSync(
             token: auth.wrapperToken,
-            enabled: classLiveActivityEnabled && auth.isAuthenticated,
+            enabled: isLiveActivityEnabled,
             forceRegisterOnStart: forceRegisterOnStart
+        )
+        guard isLiveActivityEnabled else { return }
+        await ClassLiveActivityCoordinator.shared.subscribeToActiveChannelIfPossible(
+            token: auth.wrapperToken,
+            context: modelContext
         )
     }
 }

@@ -966,6 +966,16 @@ struct LiveActivityDebugRunData: Decodable {
     }
 }
 
+struct LiveActivityChannelData: Decodable {
+    let bundleID: String
+    let channelID: String
+
+    enum CodingKeys: String, CodingKey {
+        case bundleID = "bundle_id"
+        case channelID = "channel_id"
+    }
+}
+
 // MARK: - Service
 
 struct APIService {
@@ -973,6 +983,7 @@ struct APIService {
     static let schoolCalendarCSVURL = URL(string: "https://chihlee-cal-worker.thisisch.workers.dev/api/v1/csv")!
 
     private struct ApiErrorPayload: Decodable {
+        let code: String?
         let message: String?
     }
 
@@ -1600,6 +1611,46 @@ struct APIService {
                 throw AuthError.decodingError
             }
             return payload
+        case 401:
+            throw AuthError.invalidCredentials
+        case 429:
+            throw AuthError.tooManyRequests
+        default:
+            let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
+            throw AuthError.serverError(envelope?.error?.message ?? "HTTP \(http.statusCode)")
+        }
+    }
+
+    static func fetchLiveActivityChannel(
+        token: String,
+        bundleID: String
+    ) async throws -> LiveActivityChannelData? {
+        var components = URLComponents(string: "\(baseURL)/api/v1/live_activity/channel")!
+        components.queryItems = [URLQueryItem(name: "bundle_id", value: bundleID)]
+
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        struct Envelope: Decodable {
+            let data: LiveActivityChannelData?
+            let error: ApiErrorPayload?
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+
+        switch http.statusCode {
+        case 200:
+            let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+            guard let payload = envelope.data else {
+                throw AuthError.decodingError
+            }
+            return payload
+        case 400:
+            // Backend uses 400 when there is no active channel to subscribe.
+            return nil
         case 401:
             throw AuthError.invalidCredentials
         case 429:

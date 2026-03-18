@@ -192,6 +192,44 @@ final class ClassLiveActivityCoordinator {
         }
     }
 
+    func subscribeToActiveChannelIfPossible(
+        token: String?,
+        context: ModelContext
+    ) async {
+        #if canImport(ActivityKit)
+        guard #available(iOS 18.0, *),
+              ActivityAuthorizationInfo().areActivitiesEnabled,
+              let authToken = Self.normalized(token),
+              let bundleID = Self.normalized(Bundle.main.bundleIdentifier)
+        else {
+            return
+        }
+        guard !Self.hasOngoingLiveActivity() else { return }
+
+        do {
+            guard let channel = try await APIService.fetchLiveActivityChannel(
+                token: authToken,
+                bundleID: bundleID
+            ) else {
+                return
+            }
+            guard let snapshot = Self.currentSnapshot(context: context) else {
+                return
+            }
+            try Self.requestChannelBackedActivity(snapshot: snapshot, channelID: channel.channelID)
+        } catch is CancellationError {
+            return
+        } catch {
+            #if DEBUG
+            print("Live Activity channel subscribe failed: \(error.localizedDescription)")
+            #endif
+        }
+        #else
+        _ = token
+        _ = context
+        #endif
+    }
+
     func endAllActivities() async {
         #if canImport(ActivityKit)
         guard #available(iOS 16.2, *) else { return }
@@ -428,6 +466,60 @@ final class ClassLiveActivityCoordinator {
             }
             throw error
         }
+    }
+
+    @available(iOS 18.0, *)
+    private static func hasOngoingLiveActivity() -> Bool {
+        Activity<ClassLiveActivityAttributes>.activities.contains { activity in
+            switch activity.activityState {
+            case .active, .stale:
+                return true
+            case .ended, .dismissed:
+                return false
+            @unknown default:
+                return false
+            }
+        }
+    }
+
+    private static func currentSnapshot(context: ModelContext, now: Date = Date()) -> ClassLiveActivitySnapshot? {
+        let sessions = (try? context.fetch(FetchDescriptor<ClassSession>())) ?? []
+        let entries = ClassLiveActivityEngine.timelineEntries(now: now, sessions: sessions)
+        return ClassLiveActivityEngine.snapshot(now: now, entries: entries)
+    }
+
+    @available(iOS 18.0, *)
+    private static func requestChannelBackedActivity(
+        snapshot: ClassLiveActivitySnapshot,
+        channelID: String
+    ) throws {
+        let attributes = ClassLiveActivityAttributes(
+            sessionID: snapshot.sessionID,
+            courseName: snapshot.courseName,
+            classroom: snapshot.classroom,
+            teacher: snapshot.teacher,
+            classStart: snapshot.classStart,
+            classEnd: snapshot.classEnd
+        )
+        let state = ClassLiveActivityAttributes.ContentState(
+            phase: snapshot.phase,
+            courseName: snapshot.courseName,
+            classroom: snapshot.classroom,
+            teacher: snapshot.teacher,
+            classStart: snapshot.classStart,
+            classEnd: snapshot.classEnd,
+            phaseStart: snapshot.phaseStart,
+            phaseEnd: snapshot.phaseEnd,
+            nextCourseName: snapshot.nextCourseName,
+            nextStart: snapshot.nextStart,
+            nextClassroom: snapshot.nextClassroom
+        )
+
+        _ = try Activity.request(
+            attributes: attributes,
+            content: ActivityContent(state: state, staleDate: snapshot.phaseEnd),
+            pushType: .channel(channelID)
+        )
     }
 
     private func classDuration(for session: ClassSession) -> TimeInterval {
