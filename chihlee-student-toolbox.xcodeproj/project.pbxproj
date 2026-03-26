@@ -55,6 +55,23 @@
 		E248C2192F4F15E400385351 /* chihlee-student-toolboxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "chihlee-student-toolboxUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E227A51A2F751D970007980F /* Exceptions for "chihlee-student-toolbox" folder in "chihlee-student-toolbox" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				chihlee_student_toolboxUITests.swift,
+			);
+			target = E248C1FF2F4F15E200385351 /* chihlee-student-toolbox */;
+		};
+		E227A51B2F751D970007980F /* Exceptions for "chihlee-student-toolbox" folder in "chihlee-student-toolboxUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				chihlee_student_toolboxUITests.swift,
+			);
+			target = E248C2182F4F15E400385351 /* chihlee-student-toolboxUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A10000023C1A000100000001 /* ClassLiveActivityWidgetExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -68,6 +85,10 @@
 		};
 		E248C2022F4F15E200385351 /* chihlee-student-toolbox */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E227A51A2F751D970007980F /* Exceptions for "chihlee-student-toolbox" folder in "chihlee-student-toolbox" target */,
+				E227A51B2F751D970007980F /* Exceptions for "chihlee-student-toolbox" folder in "chihlee-student-toolboxUITests" target */,
+			);
 			path = "chihlee-student-toolbox";
 			sourceTree = "<group>";
 		};
@@ -545,6 +566,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = "chihlee-student-toolbox/chihlee-student-toolbox.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -580,6 +602,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = "chihlee-student-toolbox/chihlee-student-toolbox.release.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
