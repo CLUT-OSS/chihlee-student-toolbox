@@ -43,13 +43,19 @@ struct ClassLiveActivityWidget: Widget {
                     }
                 } compactTrailing: {
                     CountdownRemainingMinutesText(
-                        dateRange: context.state.phaseStart...context.state.phaseEnd,
+                        dateRange: LiveActivityDateRange.between(
+                            context.state.phaseStart,
+                            context.state.phaseEnd
+                        ),
                         prefix: "",
                         tint: .orange
                     )
                 } minimal: {
                     CountdownRemainingMinutesText(
-                        dateRange: context.state.phaseStart...context.state.phaseEnd,
+                        dateRange: LiveActivityDateRange.between(
+                            context.state.phaseStart,
+                            context.state.phaseEnd
+                        ),
                         prefix: "還有",
                         tint: .orange,
                         display: .minimal
@@ -81,10 +87,18 @@ struct ClassLiveActivityWidget: Widget {
                         .font(.system(.caption2, design: .rounded).weight(.semibold))
                         .foregroundStyle(.green)
                 } compactTrailing: {
-                    ShortRemainingMinutesText(dateRange: context.state.phaseStart...context.state.phaseEnd)
+                    ShortRemainingMinutesText(
+                        dateRange: LiveActivityDateRange.between(
+                            context.state.phaseStart,
+                            context.state.phaseEnd
+                        )
+                    )
                 } minimal: {
                     ShortRemainingMinutesText(
-                        dateRange: context.state.phaseStart...context.state.phaseEnd,
+                        dateRange: LiveActivityDateRange.between(
+                            context.state.phaseStart,
+                            context.state.phaseEnd
+                        ),
                         display: .minimal
                     )
                 }
@@ -125,10 +139,27 @@ struct ClassLiveActivityWidget: Widget {
     private static var lockScreenBackgroundTint: Color {
         Color(UIColor { trait in
             if trait.userInterfaceStyle == .dark {
-                return UIColor.black.withAlphaComponent(0.88)
+                return UIColor(
+                    red: 0.13,
+                    green: 0.16,
+                    blue: 0.20,
+                    alpha: 0.86
+                )
             }
-            return UIColor.white.withAlphaComponent(0.94)
+            return UIColor.white.withAlphaComponent(0.92)
         })
+    }
+}
+
+private enum LiveActivityDateRange {
+    static func between(_ first: Date, _ second: Date) -> ClosedRange<Date> {
+        let lower = min(first, second)
+        let upper = max(first, second)
+        return lower...upper
+    }
+
+    static func remaining(until endDate: Date, now: Date = .now) -> ClosedRange<Date> {
+        now...max(now, endDate)
     }
 }
 
@@ -287,7 +318,7 @@ private struct RemainingRingView: View {
 
     var body: some View {
         FixedWidthTimerText(
-            dateRange: .now...endDate,
+            dateRange: LiveActivityDateRange.remaining(until: endDate),
             font: .system(size: 22, weight: .bold, design: .rounded),
             uiFont: UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold),
             minimumScaleFactor: 0.75,
@@ -305,8 +336,10 @@ private struct InClassExpandedBottomView: View {
     let nextClassroom: String?
 
     var body: some View {
+        let phaseRange = LiveActivityDateRange.between(phaseStart, phaseEnd)
+
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false)
+            ProgressView(timerInterval: phaseRange, countsDown: false)
                 .tint(.green)
                 .labelsHidden()
 
@@ -336,7 +369,7 @@ private struct CountdownExpandedLeadingView: View {
     var body: some View {
         VStack(spacing: 0) {
             FixedWidthTimerText(
-                dateRange: .now...endDate,
+                dateRange: LiveActivityDateRange.remaining(until: endDate),
                 font: .system(size: 30, weight: .bold, design: .rounded),
                 uiFont: UIFont.monospacedDigitSystemFont(ofSize: 30, weight: .bold),
                 minimumScaleFactor: 0.55,
@@ -388,6 +421,8 @@ private struct CountdownExpandedBottomView: View {
     let classStartText: String
 
     var body: some View {
+        let phaseRange = LiveActivityDateRange.between(phaseStart, phaseEnd)
+
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("現在")
@@ -398,7 +433,7 @@ private struct CountdownExpandedBottomView: View {
             .font(.system(.caption2, design: .rounded).weight(.semibold))
             .foregroundStyle(.secondary)
 
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false)
+            ProgressView(timerInterval: phaseRange, countsDown: false)
                 .progressViewStyle(.linear)
                 .tint(.orange)
                 .labelsHidden()
@@ -442,6 +477,11 @@ private struct ClassLiveActivityLockScreenView: View {
 
     @ViewBuilder
     private func activityContent(showNextClass: Bool) -> some View {
+        let phaseRange = LiveActivityDateRange.between(
+            context.state.phaseStart,
+            context.state.phaseEnd
+        )
+
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
                 HStack(spacing: 6) {
@@ -458,7 +498,7 @@ private struct ClassLiveActivityLockScreenView: View {
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(secondaryTextColor)
                     FixedWidthTimerText(
-                        dateRange: context.state.phaseStart...context.state.phaseEnd,
+                        dateRange: phaseRange,
                         font: .system(.subheadline, design: .rounded).weight(.semibold),
                         uiFont: UIFont.monospacedDigitSystemFont(ofSize: 15, weight: .semibold),
                         minimumScaleFactor: 0.85,
@@ -475,7 +515,8 @@ private struct ClassLiveActivityLockScreenView: View {
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(primaryTextColor)
 
-            ProgressView(timerInterval: context.state.phaseStart...context.state.phaseEnd, countsDown: false)
+            ProgressView(timerInterval: phaseRange, countsDown: false)
+                .progressViewStyle(.linear)
                 .tint(statusColor)
                 .labelsHidden()
                 .scaleEffect(x: 1, y: 0.9, anchor: .center)
