@@ -279,25 +279,6 @@ private struct FixedWidthTimerText: View {
     }
 }
 
-private struct PaddedMinuteSystemTimerText: View {
-    let dateRange: ClosedRange<Date>
-    let font: Font
-    let width: CGFloat
-    let minimumScaleFactor: CGFloat
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Text("0")
-            Text(timerInterval: dateRange, countsDown: true, showsHours: false)
-        }
-        .font(font.monospacedDigit())
-        .lineLimit(1)
-        .minimumScaleFactor(minimumScaleFactor)
-        .frame(width: width, alignment: .trailing)
-        .clipped()
-    }
-}
-
 private struct InClassExpandedLeadingView: View {
     let courseName: String
     let classroom: String
@@ -367,13 +348,22 @@ private struct RemainingRingView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: timerWidth, alignment: .center)
 
-            PaddedMinuteSystemTimerText(
-                dateRange: LiveActivityDateRange.remaining(until: endDate),
-                font: .system(size: 22, weight: .bold, design: .rounded),
-                width: timerWidth,
-                minimumScaleFactor: 0.75
-            )
+            Group {
+                if endDate > .now {
+                    Text(
+                        timerInterval: LiveActivityDateRange.remaining(until: endDate),
+                        countsDown: true,
+                        showsHours: false
+                    )
+                } else {
+                    Text("0:00")
+                }
+            }
+            .font(.system(size: 22, weight: .bold, design: .default).monospacedDigit())
             .foregroundStyle(.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .frame(width: timerWidth, alignment: .center)
             .layoutPriority(2)
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -383,7 +373,7 @@ private struct RemainingRingView: View {
     private var timerWidth: CGFloat {
         let font = UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold)
         let attributes: [NSAttributedString.Key: Any] = [.font: font]
-        return ("00:00" as NSString).size(withAttributes: attributes).width
+        return ("0:00" as NSString).size(withAttributes: attributes).width
     }
 }
 
