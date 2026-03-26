@@ -14,10 +14,10 @@ struct ClassLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             if context.state.phase == .countdown {
                 DynamicIsland {
-                    DynamicIslandExpandedRegion(.leading, priority: 2) {
-                        CountdownExpandedLeadingView(endDate: context.state.phaseEnd)
+                    DynamicIslandExpandedRegion(.leading, priority: 3) {
+                        CountdownExpandedLeadingView(classroom: context.state.classroom)
                     }
-                    DynamicIslandExpandedRegion(.center, priority: 3) {
+                    DynamicIslandExpandedRegion(.center, priority: 2) {
                         CountdownExpandedCenterView(
                             courseName: context.state.courseName,
                             classroom: context.state.classroom,
@@ -51,16 +51,11 @@ struct ClassLiveActivityWidget: Widget {
                         tint: .orange
                     )
                 } minimal: {
-                    CountdownRemainingMinutesText(
-                        dateRange: LiveActivityDateRange.between(
-                            context.state.phaseStart,
-                            context.state.phaseEnd
-                        ),
-                        prefix: "還有",
-                        tint: .orange,
-                        display: .minimal
-                    )
+                    Image(systemName: "clock.fill")
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.orange)
                 }
+                .keylineTint(.orange.opacity(0.65))
             } else {
                 DynamicIsland {
                     DynamicIslandExpandedRegion(.leading, priority: 3) {
@@ -70,9 +65,14 @@ struct ClassLiveActivityWidget: Widget {
                         )
                     }
                     DynamicIslandExpandedRegion(.trailing, priority: 2) {
-                        RemainingRingView(
-                            endDate: context.state.phaseEnd
-                        )
+                        HStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            RemainingRingView(
+                                endDate: context.state.phaseEnd
+                            )
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     DynamicIslandExpandedRegion(.bottom, priority: 2) {
                         InClassExpandedBottomView(
@@ -94,14 +94,11 @@ struct ClassLiveActivityWidget: Widget {
                         )
                     )
                 } minimal: {
-                    ShortRemainingMinutesText(
-                        dateRange: LiveActivityDateRange.between(
-                            context.state.phaseStart,
-                            context.state.phaseEnd
-                        ),
-                        display: .minimal
-                    )
+                    Image(systemName: "book.fill")
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.green)
                 }
+                .keylineTint(.green.opacity(0.65))
             }
         }
     }
@@ -282,9 +279,32 @@ private struct FixedWidthTimerText: View {
     }
 }
 
+private struct PaddedMinuteSystemTimerText: View {
+    let dateRange: ClosedRange<Date>
+    let font: Font
+    let width: CGFloat
+    let minimumScaleFactor: CGFloat
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text("0")
+            Text(timerInterval: dateRange, countsDown: true, showsHours: false)
+        }
+        .font(font.monospacedDigit())
+        .lineLimit(1)
+        .minimumScaleFactor(minimumScaleFactor)
+        .frame(width: width, alignment: .trailing)
+        .clipped()
+    }
+}
+
 private struct InClassExpandedLeadingView: View {
     let courseName: String
     let classroom: String
+
+    private var displayClassroom: String {
+        classroom.isEmpty ? "--" : classroom
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -293,22 +313,46 @@ private struct InClassExpandedLeadingView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .allowsTightening(true)
+                .layoutPriority(2)
+                .dynamicIsland(verticalPlacement: .belowIfTooWide)
 
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(.green)
-                    .frame(width: 7, height: 7)
-                Text("\(classroom.isEmpty ? "--" : classroom) • 進行中")
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .allowsTightening(true)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 7, height: 7)
+                    Text("\(displayClassroom) • 進行中")
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .allowsTightening(true)
+                }
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 7, height: 7)
+                    Text(displayClassroom)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .allowsTightening(true)
+                }
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 7, height: 7)
+                    Text("進行中")
+                        .foregroundStyle(.secondary)
+                }
             }
             .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            .dynamicIsland(verticalPlacement: .belowIfTooWide)
         }
-        .padding(.leading, 8)
-        .padding(.top, 6)
-        .padding(.trailing, 4)
+        .padding(.leading, 4)
+        .padding(.top, 4)
+        .padding(.trailing, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -317,15 +361,29 @@ private struct RemainingRingView: View {
     let endDate: Date
 
     var body: some View {
-        FixedWidthTimerText(
-            dateRange: LiveActivityDateRange.remaining(until: endDate),
-            font: .system(size: 22, weight: .bold, design: .rounded),
-            uiFont: UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold),
-            minimumScaleFactor: 0.75,
-            alignment: .trailing
-        )
-        .frame(width: 72, alignment: .trailing)
+        VStack(alignment: .center, spacing: 3) {
+            Text("剩餘")
+                .font(.system(.caption2, design: .rounded).weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: timerWidth, alignment: .center)
+
+            PaddedMinuteSystemTimerText(
+                dateRange: LiveActivityDateRange.remaining(until: endDate),
+                font: .system(size: 22, weight: .bold, design: .rounded),
+                width: timerWidth,
+                minimumScaleFactor: 0.75
+            )
+            .foregroundStyle(.primary)
+            .layoutPriority(2)
+        }
+        .fixedSize(horizontal: true, vertical: false)
         .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private var timerWidth: CGFloat {
+        let font = UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .bold)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        return ("00:00" as NSString).size(withAttributes: attributes).width
     }
 }
 
@@ -337,26 +395,44 @@ private struct InClassExpandedBottomView: View {
 
     var body: some View {
         let phaseRange = LiveActivityDateRange.between(phaseStart, phaseEnd)
+        let nextClassSummary = nextCourseName.map { course in
+            course + (nextClassroom.flatMap { $0.isEmpty ? nil : " • \($0)" } ?? "")
+        }
 
         VStack(alignment: .leading, spacing: 8) {
             ProgressView(timerInterval: phaseRange, countsDown: false)
                 .tint(.green)
                 .labelsHidden()
 
-            if let nextCourseName, !nextCourseName.isEmpty {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("下一堂")
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.orange)
-                    Spacer(minLength: 10)
-                    Text(nextCourseName + (nextClassroom.flatMap { $0.isEmpty ? nil : " • \($0)" } ?? ""))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .truncationMode(.tail)
-                        .foregroundStyle(.primary)
+            if let nextClassSummary, !nextClassSummary.isEmpty {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("下一堂")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                        Spacer(minLength: 8)
+                        Text(nextClassSummary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .truncationMode(.tail)
+                            .foregroundStyle(.primary)
+                            .layoutPriority(1)
+                            .dynamicIsland(verticalPlacement: .belowIfTooWide)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("下一堂")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                        Text(nextClassSummary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .truncationMode(.tail)
+                            .foregroundStyle(.primary)
+                    }
                 }
-                .font(.system(.headline, design: .rounded))
-                .padding(.trailing, 8)
+                .font(.system(.subheadline, design: .rounded))
+                .padding(.trailing, 6)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -364,29 +440,37 @@ private struct InClassExpandedBottomView: View {
 }
 
 private struct CountdownExpandedLeadingView: View {
-    let endDate: Date
+    let classroom: String
+
+    private var displayClassroom: String {
+        classroom.isEmpty ? "--" : classroom
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            FixedWidthTimerText(
-                dateRange: LiveActivityDateRange.remaining(until: endDate),
-                font: .system(size: 30, weight: .bold, design: .rounded),
-                uiFont: UIFont.monospacedDigitSystemFont(ofSize: 30, weight: .bold),
-                minimumScaleFactor: 0.55,
-                alignment: .center
-            )
-            .frame(maxWidth: .infinity, alignment: .center)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("教室")
+                .font(.system(.caption2, design: .rounded).weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(displayClassroom)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .foregroundStyle(.orange)
         }
-        .foregroundStyle(.orange)
-        .frame(width: 92, height: 92)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(width: 92, height: 92, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.orange.opacity(0.15))
+                .fill(.orange.opacity(0.14))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(.orange.opacity(0.35), lineWidth: 1)
+                .stroke(.orange.opacity(0.28), lineWidth: 1)
         )
+        .padding(.leading, 2)
+        .padding(.top, 2)
     }
 }
 
@@ -405,11 +489,15 @@ private struct CountdownExpandedCenterView: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.6)
                 .allowsTightening(true)
-            Text("\(classroom.isEmpty ? "--" : classroom) • \(classStartText) 開始")
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.secondary)
+                .layoutPriority(2)
+                .dynamicIsland(verticalPlacement: .belowIfTooWide)
+
+            Text("\(classStartText) 開始")
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+            .font(.system(.subheadline, design: .rounded))
+            .foregroundStyle(.secondary)
+            .dynamicIsland(verticalPlacement: .belowIfTooWide)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -424,21 +512,36 @@ private struct CountdownExpandedBottomView: View {
         let phaseRange = LiveActivityDateRange.between(phaseStart, phaseEnd)
 
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("現在")
-                Text(Date(), style: .time)
-                Spacer()
-                Text("開始 \(classStartText)")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    HStack(spacing: 3) {
+                        Text("現在")
+                        Text(Date(), style: .time)
+                    }
+                    Spacer(minLength: 8)
+                    Text("開始 \(classStartText)")
+                        .lineLimit(1)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 3) {
+                        Text("現在")
+                        Text(Date(), style: .time)
+                    }
+                    Text("開始 \(classStartText)")
+                        .lineLimit(1)
+                }
             }
             .font(.system(.caption2, design: .rounded).weight(.semibold))
             .foregroundStyle(.secondary)
+            .dynamicIsland(verticalPlacement: .belowIfTooWide)
 
             ProgressView(timerInterval: phaseRange, countsDown: false)
                 .progressViewStyle(.linear)
                 .tint(.orange)
                 .labelsHidden()
-                .frame(height: 6)
-                .padding(.horizontal, 6)
+                .frame(height: 8)
+                .padding(.horizontal, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
