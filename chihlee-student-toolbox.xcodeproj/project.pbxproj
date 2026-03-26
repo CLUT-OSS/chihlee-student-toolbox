@@ -189,6 +189,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E248C2232F4F15E400385351 /* Build configuration list for PBXNativeTarget "chihlee-student-toolbox" */;
 			buildPhases = (
+				E2B1C0012F4F15E400385351 /* Update Git Commit */,
 				E248C1FC2F4F15E200385351 /* Sources */,
 				E248C1FD2F4F15E200385351 /* Frameworks */,
 				E248C1FE2F4F15E200385351 /* Resources */,
@@ -337,6 +338,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E2B1C0012F4F15E400385351 /* Update Git Commit */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Update Git Commit";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\nBUILD_INFO_FILE=\"$SRCROOT/chihlee-student-toolbox/Views/Profile/AuthTokenDebugView.swift\"\nCURRENT_COMMIT=\"$(/usr/bin/git -C \"$SRCROOT\" rev-parse HEAD 2>/dev/null || true)\"\n\nif [ -z \"$CURRENT_COMMIT\" ]; then\n  echo \"warning: Unable to resolve git commit hash\"\n  exit 0\nfi\n\nif [ ! -f \"$BUILD_INFO_FILE\" ]; then\n  echo \"warning: Build info source not found at $BUILD_INFO_FILE\"\n  exit 0\nfi\n\n/usr/bin/sed -i '' -E \"s/static let gitCommit = \\\"[^\\\"]*\\\"/static let gitCommit = \\\"$CURRENT_COMMIT\\\"/\" \"$BUILD_INFO_FILE\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000063C1A000100000001 /* Sources */ = {
@@ -572,6 +595,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CY7Q757DQN;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "CLUT 自己人";
@@ -608,6 +632,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CY7Q757DQN;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "CLUT 自己人";
