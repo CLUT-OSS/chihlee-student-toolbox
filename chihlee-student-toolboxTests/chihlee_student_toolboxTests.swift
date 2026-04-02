@@ -201,8 +201,8 @@ struct chihlee_student_toolboxTests {
         {
           "status": "success",
           "student": {
-            "id": "",
-            "name": "",
+            "id": "11200000",
+            "name": "王小明",
             "department": "資管系",
             "class": "資三C",
             "program": "日四技",
@@ -261,7 +261,7 @@ struct chihlee_student_toolboxTests {
         {
           "status": "success",
           "data": {
-            "student": { "id": "" },
+            "student": { "id": "11200000" },
             "rankings": [
               {
                 "academic_year": 114,
@@ -289,8 +289,8 @@ struct chihlee_student_toolboxTests {
           "data": {
             "department": "資管系",
             "class": "資三C",
-            "student_id": "",
-            "name": "",
+            "student_id": "11200000",
+            "name": "王小明",
             "enrollment_status": "在學",
             "activity_fee_status": "未繳交學生活動費",
             "registration_status": "114學年度第2學期已完成註冊"
@@ -306,8 +306,8 @@ struct chihlee_student_toolboxTests {
         let payload = try #require(decoded.data)
         #expect(payload.department == "資管系")
         #expect(payload.studentClass == "資三C")
-        #expect(payload.studentID == "")
-        #expect(payload.name == "")
+        #expect(payload.studentID == "11200000")
+        #expect(payload.name == "王小明")
         #expect(payload.enrollmentStatus == "在學")
         #expect(payload.activityFeeStatus == "未繳交學生活動費")
         #expect(payload.registrationStatus == "114學年度第2學期已完成註冊")
