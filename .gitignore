@@ -34,3 +34,6 @@ fastlane/test_output/
 *.swp
 *.swo
 *~
+
+# Local marketing exports
+app-store-images/
