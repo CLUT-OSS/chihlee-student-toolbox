@@ -124,6 +124,9 @@ struct ContentView: View {
             forceRegisterOnStart: forceRegisterOnStart
         )
         guard isLiveActivityEnabled else { return }
+        _ = await ClassLiveActivityCoordinator.shared.registerRemoteDeviceIfPossible(
+            token: auth.wrapperToken
+        )
         await ClassLiveActivityCoordinator.shared.subscribeToActiveChannelIfPossible(
             token: auth.wrapperToken,
             context: modelContext
