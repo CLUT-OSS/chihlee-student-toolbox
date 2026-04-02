@@ -982,6 +982,13 @@ struct APIService {
     static let baseURL = AuthService.baseURL
     static let schoolCalendarCSVURL = URL(string: "https://chihlee-cal-worker.thisisch.workers.dev/api/v1/csv")!
 
+    private static func validatedHTTPResponse(from response: URLResponse) throws -> HTTPURLResponse {
+        guard let http = response as? HTTPURLResponse else {
+            throw AuthError.networkError("無效的伺服器回應")
+        }
+        return http
+    }
+
     private struct ApiErrorPayload: Decodable {
         let code: String?
         let message: String?
@@ -1026,7 +1033,7 @@ struct APIService {
         } catch {
             throw AuthError.networkError(error.localizedDescription)
         }
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
@@ -1053,7 +1060,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
@@ -1077,7 +1084,7 @@ struct APIService {
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1114,7 +1121,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
@@ -1135,7 +1142,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1157,7 +1164,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1171,7 +1178,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1198,7 +1205,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1219,7 +1226,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1235,7 +1242,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
@@ -1272,7 +1279,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1327,7 +1334,7 @@ struct APIService {
         ))
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1353,7 +1360,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1381,7 +1388,7 @@ struct APIService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1425,7 +1432,7 @@ struct APIService {
         request.httpBody = try JSONEncoder().encode(Body(id: recordID))
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else {
             throw AuthError.serverError("HTTP \(http.statusCode)")
         }
@@ -1472,7 +1479,7 @@ struct APIService {
 
         request.httpBody = try JSONEncoder().encode(Body(idfv: idfv, pushToStartToken: pushToStartToken))
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200 ..< 300:
@@ -1525,7 +1532,7 @@ struct APIService {
             Body(idfv: idfv, bundleID: bundleID, pushToStartToken: pushToStartToken)
         )
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200 ..< 300:
@@ -1567,7 +1574,7 @@ struct APIService {
 
         request.httpBody = try JSONEncoder().encode(Body(idfv: idfv, bundleID: bundleID))
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200:
@@ -1602,7 +1609,7 @@ struct APIService {
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200:
@@ -1639,7 +1646,7 @@ struct APIService {
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200:

@@ -17,6 +17,7 @@ final class ClassLiveActivityCoordinator {
 
     private var remoteSyncTask: Task<Void, Never>?
     private var remoteSyncToken: String?
+    private let credentialStore = CredentialStore.shared
 
     private init() {}
 
@@ -24,7 +25,7 @@ final class ClassLiveActivityCoordinator {
         #if canImport(ActivityKit)
         _ = now
         _ = context
-        await updateRemoteSync(token: UserDefaults.standard.string(forKey: "wrapperToken"), enabled: enabled)
+        await updateRemoteSync(token: credentialStore.loadWrapperToken(), enabled: enabled)
         #else
         _ = now
         _ = context

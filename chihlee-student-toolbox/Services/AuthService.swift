@@ -103,6 +103,13 @@ struct AuthService {
         #endif
     }
 
+    private static func validatedHTTPResponse(from response: URLResponse) throws -> HTTPURLResponse {
+        guard let http = response as? HTTPURLResponse else {
+            throw AuthError.networkError("無效的伺服器回應")
+        }
+        return http
+    }
+
     static func login(muid: String, mpassword: String) async throws -> LoginResponseData {
         let url = URL(string: "\(baseURL)/api/v1/auth/login")!
         var request = URLRequest(url: url)
@@ -111,7 +118,7 @@ struct AuthService {
         request.httpBody = try JSONEncoder().encode(["muid": muid, "mpassword": mpassword])
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200:
@@ -140,7 +147,7 @@ struct AuthService {
         }
 
         let (_, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
         guard http.statusCode == 200 else { return }
     }
 
@@ -150,7 +157,7 @@ struct AuthService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let http = response as! HTTPURLResponse
+        let http = try validatedHTTPResponse(from: response)
 
         switch http.statusCode {
         case 200:

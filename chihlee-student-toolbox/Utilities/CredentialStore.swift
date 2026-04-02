@@ -14,6 +14,7 @@ final class CredentialStore {
     private enum Account {
         static let muid = "muid"
         static let mpassword = "mpassword"
+        static let wrapperToken = "wrapperToken"
     }
 
     private init() {
@@ -40,6 +41,21 @@ final class CredentialStore {
     func clear() {
         deleteValue(forAccount: Account.muid)
         deleteValue(forAccount: Account.mpassword)
+    }
+
+    func saveWrapperToken(_ token: String) {
+        saveValue(token, forAccount: Account.wrapperToken)
+    }
+
+    func loadWrapperToken() -> String? {
+        guard let token = readValue(forAccount: Account.wrapperToken), !token.isEmpty else {
+            return nil
+        }
+        return token
+    }
+
+    func clearWrapperToken() {
+        deleteValue(forAccount: Account.wrapperToken)
     }
 
     private func saveValue(_ value: String, forAccount account: String) {

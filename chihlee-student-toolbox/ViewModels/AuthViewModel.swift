@@ -34,6 +34,7 @@ final class AuthViewModel {
     private var isSessionValidationInFlight = false
 
     private let credentialStore = CredentialStore.shared
+    private static let legacyWrapperTokenKey = "wrapperToken"
     private static let sessionRefreshInterval: TimeInterval = 5 * 60
     private static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -47,11 +48,18 @@ final class AuthViewModel {
     }()
 
     private(set) var wrapperToken: String? {
-        get { UserDefaults.standard.string(forKey: "wrapperToken") }
-        set { UserDefaults.standard.set(newValue, forKey: "wrapperToken") }
+        get { credentialStore.loadWrapperToken() }
+        set {
+            guard let token = newValue?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty else {
+                credentialStore.clearWrapperToken()
+                return
+            }
+            credentialStore.saveWrapperToken(token)
+        }
     }
 
     init() {
+        migrateLegacyWrapperTokenIfNeeded()
         // Restore auth state from persisted token
         isAuthenticated = wrapperToken != nil && !(wrapperToken?.isEmpty ?? true)
     }
@@ -159,14 +167,14 @@ final class AuthViewModel {
 
     private func shouldRefreshToken(using session: SessionStatusData) -> Bool {
         let isTokenMissing = (session.wrapperToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        let isSessionOlderThanFiveMinutes = isOlderThanRefreshInterval(session.createdAt)
-        return isTokenMissing || isSessionOlderThanFiveMinutes
+        let isSessionExpiringSoon = isExpiringWithinRefreshInterval(session.expiresAt)
+        return isTokenMissing || isSessionExpiringSoon
     }
 
-    private func isOlderThanRefreshInterval(_ createdAt: String?) -> Bool {
-        guard let createdAt else { return true }
-        guard let createdAtDate = Self.parseServerDate(createdAt) else { return true }
-        return Date().timeIntervalSince(createdAtDate) > Self.sessionRefreshInterval
+    private func isExpiringWithinRefreshInterval(_ expiresAt: String?) -> Bool {
+        guard let expiresAt else { return true }
+        guard let expiryDate = Self.parseServerDate(expiresAt) else { return true }
+        return expiryDate.timeIntervalSinceNow <= Self.sessionRefreshInterval
     }
 
     private static func parseServerDate(_ value: String) -> Date? {
@@ -180,6 +188,19 @@ final class AuthViewModel {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func migrateLegacyWrapperTokenIfNeeded() {
+        guard credentialStore.loadWrapperToken() == nil else { return }
+        guard let legacyToken = UserDefaults.standard.string(forKey: Self.legacyWrapperTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !legacyToken.isEmpty
+        else {
+            UserDefaults.standard.removeObject(forKey: Self.legacyWrapperTokenKey)
+            return
+        }
+        credentialStore.saveWrapperToken(legacyToken)
+        UserDefaults.standard.removeObject(forKey: Self.legacyWrapperTokenKey)
     }
 
     @discardableResult
@@ -220,47 +241,32 @@ final class AuthViewModel {
         muid: String,
         mpassword: String
     ) async throws -> LoginResponseData {
-        let maxAttempts = 2
-        var lastLoginResult: LoginResponseData?
-
-        for attempt in 1...maxAttempts {
-            let result: LoginResponseData
-            do {
-                debugMetrics.tokenLoginAttempts += 1
-                debugMetrics.lastLoginAttemptAt = Date()
-                result = try await AuthService.login(muid: muid, mpassword: mpassword)
-                debugMetrics.tokenLoginSuccesses += 1
-            } catch {
-                debugMetrics.tokenLoginFailures += 1
-                debugMetrics.lastErrorMessage = error.localizedDescription
-                throw error
-            }
-            lastLoginResult = result
-
-            do {
-                debugMetrics.dlcProfileChecks += 1
-                let profile = try await APIService.fetchDlcProfile(token: result.wrapperToken)
-                if isValidDlcAccount(profile.account) {
-                    debugMetrics.lastSuccessfulLoginAt = Date()
-                    return result
-                }
-                debugMetrics.dlcProfileInvalidCount += 1
-                debugMetrics.lastErrorMessage = "DLC account is empty or guest"
-            } catch {
-                debugMetrics.lastErrorMessage = error.localizedDescription
-                throw error
-            }
-
-            if attempt == maxAttempts {
-                debugMetrics.lastErrorMessage = "DLC 帳號狀態無效，請稍後再試"
-                throw AuthError.serverError("DLC 帳號狀態無效，請稍後再試")
-            }
+        let result: LoginResponseData
+        do {
+            debugMetrics.tokenLoginAttempts += 1
+            debugMetrics.lastLoginAttemptAt = Date()
+            result = try await AuthService.login(muid: muid, mpassword: mpassword)
+            debugMetrics.tokenLoginSuccesses += 1
+        } catch {
+            debugMetrics.tokenLoginFailures += 1
+            debugMetrics.lastErrorMessage = error.localizedDescription
+            throw error
         }
 
-        if let lastLoginResult {
-            return lastLoginResult
+        do {
+            debugMetrics.dlcProfileChecks += 1
+            let profile = try await APIService.fetchDlcProfile(token: result.wrapperToken)
+            if isValidDlcAccount(profile.account) {
+                debugMetrics.lastSuccessfulLoginAt = Date()
+                return result
+            }
+            debugMetrics.dlcProfileInvalidCount += 1
+            debugMetrics.lastErrorMessage = "DLC 帳號狀態無效，請稍後再試"
+            throw AuthError.serverError("DLC 帳號狀態無效，請稍後再試")
+        } catch {
+            debugMetrics.lastErrorMessage = error.localizedDescription
+            throw error
         }
-        throw AuthError.serverError("無法取得有效登入狀態")
     }
 
     private func isValidDlcAccount(_ account: String?) -> Bool {
