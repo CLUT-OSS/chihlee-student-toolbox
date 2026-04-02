@@ -1477,7 +1477,7 @@ struct APIService {
         switch http.statusCode {
         case 200 ..< 300:
             return .patched
-        case 400:
+        case 400, 404, 405:
             let envelope = try? JSONDecoder().decode(Envelope.self, from: data)
             if shouldFallbackToLiveActivityRegister(statusCode: http.statusCode, errorMessage: envelope?.error?.message) {
                 return .needsRegisterFallback
@@ -1662,9 +1662,21 @@ struct APIService {
     }
 
     static func shouldFallbackToLiveActivityRegister(statusCode: Int, errorMessage: String?) -> Bool {
+        if statusCode == 404 || statusCode == 405 {
+            return true
+        }
         guard statusCode == 400 else { return false }
         guard let errorMessage else { return false }
-        return errorMessage.localizedCaseInsensitiveContains("No matching live activity device found")
+        if errorMessage.localizedCaseInsensitiveContains("No matching live activity device found") {
+            return true
+        }
+        if errorMessage.localizedCaseInsensitiveContains("not found") {
+            return true
+        }
+        if errorMessage.localizedCaseInsensitiveContains("does not exist") {
+            return true
+        }
+        return false
     }
 
     private static func parseCSVRows(_ text: String) -> [[String]] {
