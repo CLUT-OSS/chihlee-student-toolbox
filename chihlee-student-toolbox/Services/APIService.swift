@@ -1455,6 +1455,7 @@ struct APIService {
     static func patchLiveActivityToken(
         token: String,
         idfv: String,
+        bundleID: String,
         pushToStartToken: String
     ) async throws -> LiveActivityPatchOutcome {
         let url = URL(string: "\(baseURL)/api/v1/live_activity/register")!
@@ -1466,10 +1467,12 @@ struct APIService {
 
         struct Body: Encodable {
             let idfv: String
+            let bundleID: String
             let pushToStartToken: String
 
             enum CodingKeys: String, CodingKey {
                 case idfv
+                case bundleID = "bundle_id"
                 case pushToStartToken = "push_to_start_token"
             }
         }
@@ -1477,7 +1480,9 @@ struct APIService {
             let error: ApiErrorPayload?
         }
 
-        request.httpBody = try JSONEncoder().encode(Body(idfv: idfv, pushToStartToken: pushToStartToken))
+        request.httpBody = try JSONEncoder().encode(
+            Body(idfv: idfv, bundleID: bundleID, pushToStartToken: pushToStartToken)
+        )
         let (data, response) = try await URLSession.shared.data(for: request)
         let http = try validatedHTTPResponse(from: response)
 

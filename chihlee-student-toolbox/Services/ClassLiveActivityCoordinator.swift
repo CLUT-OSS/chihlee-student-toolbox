@@ -459,6 +459,7 @@ final class ClassLiveActivityCoordinator {
         let patchOutcome = try await APIService.patchLiveActivityToken(
             token: authToken,
             idfv: idfv,
+            bundleID: bundleID,
             pushToStartToken: pushToStartToken
         )
         if case .needsRegisterFallback = patchOutcome {
@@ -517,6 +518,7 @@ final class ClassLiveActivityCoordinator {
             let patchOutcome = try await APIService.patchLiveActivityToken(
                 token: authToken,
                 idfv: idfv,
+                bundleID: bundleID,
                 pushToStartToken: pushToStartToken
             )
             if case .patched = patchOutcome {

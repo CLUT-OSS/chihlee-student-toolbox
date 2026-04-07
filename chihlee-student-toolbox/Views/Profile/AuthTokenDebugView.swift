@@ -4,7 +4,7 @@ import UIKit
 
 private enum BuildInfo {
     // Updated by development workflow when needed.
-    static let gitCommit = "3597f18239ed1a61e05389a398fda727c2d0798b"
+    static let gitCommit = "25db29a2877f71bcc9ac06f597658fd9a7f31dce"
 }
 
 struct AuthTokenDebugView: View {
